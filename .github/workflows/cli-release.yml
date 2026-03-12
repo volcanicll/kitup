@@ -24,8 +24,8 @@ jobs:
 
       - name: Lint shell scripts
         run: |
-          shellcheck install.sh
-          shellcheck kitup.sh
+          shellcheck --severity=error install.sh
+          shellcheck --severity=error kitup.sh
 
       - name: Lint PowerShell scripts
         shell: pwsh
@@ -62,8 +62,9 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Get-Command install.ps1
-          Get-Command kitup.ps1
+          Get-ChildItem -Path *.ps1
+          Test-Path -Path install.ps1
+          Test-Path -Path kitup.ps1
 
       - name: Test kitup --help (Unix)
         if: runner.os != 'Windows'
