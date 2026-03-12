@@ -187,7 +187,7 @@ install() {
     fi
 
     # Download the main script
-    local script_url="https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/$VERSION/$SCRIPT_NAME"
+    local script_url="https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/$VERSION/packages/cli/$SCRIPT_NAME"
     local script_path="$INSTALL_DIR/$SCRIPT_NAME"
     local wrapper_path="$INSTALL_DIR/$WRAPPER_NAME"
 

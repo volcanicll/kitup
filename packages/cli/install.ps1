@@ -90,7 +90,7 @@ function Install-Updater {
     }
 
     # Download the main script
-    $scriptUrl = "https://raw.githubusercontent.com/$RepoOwner/$RepoName/$Version/kitup.ps1"
+    $scriptUrl = "https://raw.githubusercontent.com/$RepoOwner/$RepoName/$Version/packages/cli/kitup.ps1"
     $scriptPath = Join-Path $InstallDir "kitup.ps1"
     $wrapperPath = Join-Path $InstallDir "kitup.bat"
 
