@@ -1,4 +1,4 @@
-# kit-update
+# kitup
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -20,13 +20,13 @@ A unified, cross-platform updater for AI coding assistants. Keep all your AI pro
 ### macOS / Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/volcanicll/kit-update/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/install.sh | bash
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/volcanicll/kit-update/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/volcanicll/kitup/main/install.ps1 | iex
 ```
 
 ## Usage
@@ -36,7 +36,7 @@ irm https://raw.githubusercontent.com/volcanicll/kit-update/main/install.ps1 | i
 View the status of all supported AI tools:
 
 ```bash
-kit-update --status
+kitup --status
 ```
 
 Output example:
@@ -56,13 +56,13 @@ aider        Yes        pipx         0.75.2          0.76.0
 ### Update All Installed Tools
 
 ```bash
-kit-update --all
+kitup --all
 ```
 
 ### Update Specific Tools
 
 ```bash
-kit-update claude codex aider
+kitup claude codex aider
 ```
 
 ### Install Missing Tools
@@ -70,13 +70,13 @@ kit-update claude codex aider
 Update all installed tools and install missing ones:
 
 ```bash
-kit-update --all --install
+kitup --all --install
 ```
 
 Or install specific tools:
 
 ```bash
-kit-update claude --install
+kitup claude --install
 ```
 
 ### Preview Changes (Dry Run)
@@ -84,7 +84,7 @@ kit-update claude --install
 See what would be updated without making changes:
 
 ```bash
-kit-update --all --dry-run
+kitup --all --dry-run
 ```
 
 ### Backup Configuration
@@ -92,13 +92,13 @@ kit-update --all --dry-run
 Backup your AI tool configurations before updating:
 
 ```bash
-kit-update --all --backup
+kitup --all --backup
 ```
 
 Restore from the last backup:
 
 ```bash
-kit-update --restore
+kitup --restore
 ```
 
 ## Command Line Options
@@ -151,23 +151,23 @@ The updater automatically detects how each tool was installed:
 ### macOS / Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/volcanicll/kit-update/main/install.sh | bash -s -- --uninstall
+curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/install.sh | bash -s -- --uninstall
 ```
 
 Or manually:
 
 ```bash
-rm ~/.local/bin/kit-update
-rm ~/.local/bin/kit-update.sh
+rm ~/.local/bin/kitup
+rm ~/.local/bin/kitup.sh
 ```
 
 ### Windows
 
 ```powershell
-irm https://raw.githubusercontent.com/volcanicll/kit-update/main/install.ps1 | iex -Args @('--uninstall')
+irm https://raw.githubusercontent.com/volcanicll/kitup/main/install.ps1 | iex -Args @('--uninstall')
 ```
 
-Or manually remove from `%LOCALAPPDATA%\kit-update`.
+Or manually remove from `%LOCALAPPDATA%\kitup`.
 
 ## GitHub API Rate Limits
 
@@ -198,31 +198,31 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **macOS / Linux:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/volcanicll/kit-update/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/volcanicll/kit-update/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/volcanicll/kitup/main/install.ps1 | iex
 ```
 
 ### 基本用法
 
 ```bash
 # 查看所有AI工具状态
-kit-update --status
+kitup --status
 
 # 更新所有已安装的工具
-kit-update --all
+kitup --all
 
 # 更新指定工具
-kit-update claude codex
+kitup claude codex
 
 # 更新所有工具并安装缺失的
-kit-update --all --install
+kitup --all --install
 
 # 模拟运行（不实际执行）
-kit-update --all --dry-run
+kitup --all --dry-run
 ```
 
 ### 支持的AI编程工具

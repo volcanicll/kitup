@@ -1,4 +1,4 @@
-# kit-update 测试用例文档
+# kitup 测试用例文档
 
 ## 一、单元测试
 
@@ -7,28 +7,28 @@
 | 测试ID   | 测试项                 | 测试步骤                                        | 预期结果                                        | 状态   |
 | -------- | ---------------------- | ----------------------------------------------- | ----------------------------------------------- | ------ |
 | INST-001 | 首次安装 (macOS/Linux) | `curl -fsSL .../install.sh \| bash`             | 脚本下载到 ~/.local/bin，添加 PATH              | 待验证 |
-| INST-002 | 首次安装 (Windows)     | `irm .../install.ps1 \| iex`                    | 脚本下载到 %LOCALAPPDATA%\kit-update，添加 PATH | 待验证 |
+| INST-002 | 首次安装 (Windows)     | `irm .../install.ps1 \| iex`                    | 脚本下载到 %LOCALAPPDATA%\kitup，添加 PATH | 待验证 |
 | INST-003 | 重复安装               | 再次运行安装脚本                                | 覆盖旧版本，提示已更新                          | 待验证 |
 | INST-004 | 卸载 (macOS/Linux)     | `.../install.sh \| bash -s -- --uninstall`      | 删除脚本和 PATH                                 | 待验证 |
 | INST-005 | 卸载 (Windows)         | `.../install.ps1 \| iex -Args @('--uninstall')` | 删除脚本和 PATH                                 | 待验证 |
 | INST-006 | 帮助信息               | `./install.sh --help`                           | 显示帮助文档                                    | 待验证 |
-| INST-007 | 版本信息               | `./install.sh --version`                        | 显示 "kit-update Installer v1.0.0"              | 待验证 |
+| INST-007 | 版本信息               | `./install.sh --version`                        | 显示 "kitup Installer v1.0.0"              | 待验证 |
 
-### 1.2 核心功能测试 (kit-update)
+### 1.2 核心功能测试 (kitup)
 
 | 测试ID   | 测试项       | 命令                         | 预期结果                 | 状态   |
 | -------- | ------------ | ---------------------------- | ------------------------ | ------ |
-| CORE-001 | 显示帮助     | `kit-update --help`          | 显示完整帮助信息         | 待验证 |
-| CORE-002 | 显示版本     | `kit-update --version`       | 显示 "kit-update v1.0.0" | 待验证 |
-| CORE-003 | 列出工具     | `kit-update --list`          | 显示6个支持的AI工具      | 待验证 |
-| CORE-004 | 状态检查     | `kit-update --status`        | 显示工具安装状态表格     | 待验证 |
-| CORE-005 | 更新所有     | `kit-update --all`           | 更新所有已安装工具       | 待验证 |
-| CORE-006 | 更新指定工具 | `kit-update claude`          | 仅更新 claude            | 待验证 |
-| CORE-007 | 安装缺失工具 | `kit-update --all --install` | 更新已安装+安装未安装    | 待验证 |
-| CORE-008 | 模拟运行     | `kit-update --all --dry-run` | 显示操作但不执行         | 待验证 |
-| CORE-009 | 强制更新     | `kit-update --all --force`   | 强制重新安装所有工具     | 待验证 |
-| CORE-010 | 备份配置     | `kit-update --all --backup`  | 备份配置后更新           | 待验证 |
-| CORE-011 | 恢复配置     | `kit-update --restore`       | 从最近备份恢复           | 待验证 |
+| CORE-001 | 显示帮助     | `kitup --help`          | 显示完整帮助信息         | 待验证 |
+| CORE-002 | 显示版本     | `kitup --version`       | 显示 "kitup v1.0.0" | 待验证 |
+| CORE-003 | 列出工具     | `kitup --list`          | 显示6个支持的AI工具      | 待验证 |
+| CORE-004 | 状态检查     | `kitup --status`        | 显示工具安装状态表格     | 待验证 |
+| CORE-005 | 更新所有     | `kitup --all`           | 更新所有已安装工具       | 待验证 |
+| CORE-006 | 更新指定工具 | `kitup claude`          | 仅更新 claude            | 待验证 |
+| CORE-007 | 安装缺失工具 | `kitup --all --install` | 更新已安装+安装未安装    | 待验证 |
+| CORE-008 | 模拟运行     | `kitup --all --dry-run` | 显示操作但不执行         | 待验证 |
+| CORE-009 | 强制更新     | `kitup --all --force`   | 强制重新安装所有工具     | 待验证 |
+| CORE-010 | 备份配置     | `kitup --all --backup`  | 备份配置后更新           | 待验证 |
+| CORE-011 | 恢复配置     | `kitup --restore`       | 从最近备份恢复           | 待验证 |
 
 ## 二、集成测试
 
@@ -39,22 +39,22 @@
 
 # 测试 2.1.1: npm 安装的 claude
 npm install -g @anthropic-ai/claude-code
-kit-update --status
+kitup --status
 # 预期输出: claude [npm] vX.X.X -> vY.Y.Y
 
 # 测试 2.1.2: brew 安装的 claude
 brew install anthropic-ai/tap/claude-code
-kit-update --status
+kitup --status
 # 预期输出: claude [brew] vX.X.X -> vY.Y.Y
 
 # 测试 2.1.3: pipx 安装的 aider
 pipx install aider-chat
-kit-update --status
+kitup --status
 # 预期输出: aider [pipx] vX.X.X -> vY.Y.Y
 
 # 测试 2.1.4: uv 安装的 aider
 uv tool install aider-chat
-kit-update --status
+kitup --status
 # 预期输出: aider [uv] vX.X.X -> vY.Y.Y
 ```
 
@@ -67,7 +67,7 @@ brew install block-goose-cli      # goose: brew
 pipx install aider-chat           # aider: pipx
 
 # 执行更新
-kit-update --all --dry-run
+kitup --all --dry-run
 # 预期: 显示使用各自方式更新，不切换包管理器
 ```
 
@@ -110,62 +110,62 @@ kit-update --all --dry-run
 
 ```bash
 # 1. 清理环境
-rm -rf ~/.local/bin/kit-update*
-rm -rf ~/.config/kit-update
+rm -rf ~/.local/bin/kitup*
+rm -rf ~/.config/kitup
 
 # 2. 执行安装
-curl -fsSL https://raw.githubusercontent.com/volcanicll/kit-update/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/install.sh | bash
 
 # 3. 验证安装
-which kit-update
-kit-update --version
+which kitup
+kitup --version
 
 # 4. 验证 PATH
-export | grep kit-update
+export | grep kitup
 ```
 
 ### 5.2 功能验证
 
 ```bash
 # 1. 基本功能
-kit-update --help
-kit-update --list
-kit-update --status
+kitup --help
+kitup --list
+kitup --status
 
 # 2. 模拟更新
-kit-update --all --dry-run
+kitup --all --dry-run
 
 # 3. 实际更新（如果已安装工具）
-kit-update --all
+kitup --all
 
 # 4. 备份测试
-kit-update --all --backup
-ls ~/.config/kit-update/backups/
+kitup --all --backup
+ls ~/.config/kitup/backups/
 
 # 5. 恢复测试
-kit-update --restore
+kitup --restore
 ```
 
 ### 5.3 卸载验证
 
 ```bash
 # 1. 执行卸载
-curl -fsSL https://raw.githubusercontent.com/volcanicll/kit-update/main/install.sh | bash -s -- --uninstall
+curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/install.sh | bash -s -- --uninstall
 
 # 2. 验证卸载
-which kit-update  # 应返回空
-ls ~/.local/bin/kit-update*  # 应不存在
+which kitup  # 应返回空
+ls ~/.local/bin/kitup*  # 应不存在
 ```
 
 ## 六、自动化测试脚本
 
 ```bash
 #!/bin/bash
-# test-kit-update.sh
+# test-kitup.sh
 
 set -e
 
-echo "=== kit-update 自动化测试 ==="
+echo "=== kitup 自动化测试 ==="
 
 # 颜色定义
 GREEN='\033[0;32m'
@@ -194,24 +194,24 @@ run_test() {
 # 语法检查
 echo "=== 语法检查 ==="
 run_test "install.sh 语法" "bash -n install.sh"
-run_test "kit-update.sh 语法" "bash -n kit-update.sh"
+run_test "kitup.sh 语法" "bash -n kitup.sh"
 
 # 基本功能测试
 echo ""
 echo "=== 基本功能测试 ==="
-run_test "--help 返回0" "./kit-update.sh --help"
-run_test "--version 返回0" "./kit-update.sh --version"
-run_test "--list 返回0" "./kit-update.sh --list"
-run_test "--status 返回0" "./kit-update.sh --status"
+run_test "--help 返回0" "./kitup.sh --help"
+run_test "--version 返回0" "./kitup.sh --version"
+run_test "--list 返回0" "./kitup.sh --list"
+run_test "--status 返回0" "./kitup.sh --status"
 
 # 输出测试
 echo ""
 echo "=== 输出验证 ==="
 echo "版本信息:"
-./kit-update.sh --version
+./kitup.sh --version
 echo ""
 echo "支持的工具:"
-./kit-update.sh --list | head -20
+./kitup.sh --list | head -20
 
 echo ""
 echo "=== 测试结果 ==="
@@ -241,11 +241,11 @@ fi
 | ---------------------- | -------- | -------- | -------------------- |
 | 安装脚本 (Unix)        | ✅ 完成  | 待验证   | install.sh           |
 | 安装脚本 (Windows)     | ✅ 完成  | 待验证   | install.ps1          |
-| 核心更新逻辑 (Unix)    | ✅ 完成  | 待验证   | kit-update.sh        |
-| 核心更新逻辑 (Windows) | ✅ 完成  | 待验证   | kit-update.ps1       |
+| 核心更新逻辑 (Unix)    | ✅ 完成  | 待验证   | kitup.sh        |
+| 核心更新逻辑 (Windows) | ✅ 完成  | 待验证   | kitup.ps1       |
 | 安装方式检测           | ✅ 完成  | 待验证   | npm/brew/pipx/uv     |
 | 版本对比               | ✅ 完成  | 待验证   | 本地 vs 最新         |
-| 配置备份/恢复          | ✅ 完成  | 待验证   | ~/.config/kit-update |
+| 配置备份/恢复          | ✅ 完成  | 待验证   | ~/.config/kitup |
 | 帮助文档               | ✅ 完成  | 待验证   | --help               |
 | CI/CD 工作流           | ✅ 完成  | 待验证   | GitHub Actions       |
 
@@ -253,16 +253,16 @@ fi
 
 ```bash
 # 在当前目录验证所有功能
-bash -n install.sh kit-update.sh
+bash -n install.sh kitup.sh
 echo "语法检查通过"
 
-./kit-update.sh --version
+./kitup.sh --version
 echo "版本信息正常"
 
-./kit-update.sh --list
+./kitup.sh --list
 echo "工具列表正常"
 
-./kit-update.sh --status
+./kitup.sh --status
 echo "状态检查正常"
 
 echo "=== 基础功能验证完成 ==="

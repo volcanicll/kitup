@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# kit-update - Installation Script
+# kitup - Installation Script
 # One-click installer for the AI coding tools updater
-# Usage: curl -fsSL https://raw.githubusercontent.com/volcanicll/kit-update/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/install.sh | bash
 #
 
 set -e
@@ -16,11 +16,11 @@ NC='\033[0m' # No Color
 
 # Configuration
 REPO_OWNER="${REPO_OWNER:-volcanicll}"
-REPO_NAME="${REPO_NAME:-kit-update}"
+REPO_NAME="${REPO_NAME:-kitup}"
 VERSION="${VERSION:-main}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
-SCRIPT_NAME="kit-update.sh"
-WRAPPER_NAME="kit-update"
+SCRIPT_NAME="kitup.sh"
+WRAPPER_NAME="kitup"
 
 # Print functions
 print_info() {
@@ -105,7 +105,7 @@ add_to_path() {
 
     if [ -n "$profile_file" ]; then
         echo "" >> "$profile_file"
-        echo "# Added by update-ai-tools installer" >> "$profile_file"
+        echo "# Added by kitup installer" >> "$profile_file"
         echo "export PATH=\"$dir:\$PATH\"" >> "$profile_file"
         print_info "Added $dir to PATH in $profile_file"
         print_info "Please run 'source $profile_file' or restart your terminal to apply changes"
@@ -137,10 +137,10 @@ create_wrapper() {
 
     cat > "$wrapper_path" << 'EOF'
 #!/bin/bash
-# Wrapper script for kit-update
+# Wrapper script for kitup
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPT_NAME="kit-update.sh"
+SCRIPT_NAME="kitup.sh"
 
 if [ -f "$SCRIPT_DIR/$SCRIPT_NAME" ]; then
     exec bash "$SCRIPT_DIR/$SCRIPT_NAME" "$@"
@@ -188,7 +188,7 @@ install() {
     local script_path="$INSTALL_DIR/$SCRIPT_NAME"
     local wrapper_path="$INSTALL_DIR/$WRAPPER_NAME"
 
-    print_info "Downloading kit-update..."
+    print_info "Downloading kitup..."
     print_info "URL: $script_url"
 
     if ! download_file "$script_url" "$script_path"; then
@@ -214,16 +214,16 @@ install() {
     print_success "Installation complete!"
     echo ""
     print_info "Usage:"
-    echo "  kit-update --help       Show help information"
-    echo "  kit-update --status     Check installed AI tools status"
-    echo "  kit-update --all        Update all installed AI tools"
+    echo "  kitup --help       Show help information"
+    echo "  kitup --status     Check installed AI tools status"
+    echo "  kitup --all        Update all installed AI tools"
     echo ""
-    print_info "To get started, run: kit-update --status"
+    print_info "To get started, run: kitup --status"
 }
 
 # Uninstall function
 uninstall() {
-    print_info "Uninstalling kit-update..."
+    print_info "Uninstalling kitup..."
 
     local script_path="$INSTALL_DIR/$SCRIPT_NAME"
     local wrapper_path="$INSTALL_DIR/$WRAPPER_NAME"
@@ -243,7 +243,7 @@ uninstall() {
 
 # Show help
 show_help() {
-    echo "kit-update - Installer"
+    echo "kitup - Installer"
     echo ""
     echo "Usage:"
     echo "  curl -fsSL https://.../install.sh | bash              # Install"
@@ -251,13 +251,13 @@ show_help() {
     echo ""
     echo "Environment variables:"
     echo "  REPO_OWNER    GitHub repository owner (default: yourusername)"
-    echo "  REPO_NAME     GitHub repository name (default: kit-update)"
+    echo "  REPO_NAME     GitHub repository name (default: kitup)"
     echo "  VERSION       Version to install (default: main)"
     echo "  INSTALL_DIR   Installation directory (default: \$HOME/.local/bin)"
     echo ""
     echo "Options:"
     echo "  --help        Show this help message"
-    echo "  --uninstall   Uninstall kit-update"
+    echo "  --uninstall   Uninstall kitup"
     echo "  --version     Show installer version"
 }
 
@@ -273,7 +273,7 @@ for arg in "$@"; do
             exit 0
             ;;
         --version|-v)
-            echo "kit-update Installer v1.0.0"
+            echo "kitup Installer v1.0.0"
             exit 0
             ;;
     esac

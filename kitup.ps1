@@ -1,5 +1,5 @@
 #
-# kit-update
+# kitup
 # A unified updater for AI coding assistants (Windows PowerShell version)
 # Supports: Claude Code, OpenCode, Codex, Gemini CLI, Goose, Aider
 #
@@ -7,7 +7,7 @@
 $ErrorActionPreference = "Stop"
 
 # Version
-$script:VERSION = "1.0.0"
+$script:VERSION = "0.0.1"
 
 # Configuration
 $script:DRY_RUN = $false
@@ -20,7 +20,7 @@ $script:VERBOSE = $false
 # Format: Name, Command, NpmPackage, BrewFormula, PipxPackage, UvPackage, GitHubRepo, InstallUrl, ChocoPackage, ScoopPackage
 $script:TOOLS = @(
     @("claude", "claude", "@anthropic-ai/claude-code", $null, $null, $null, "anthropics/claude-code", "https://claude.ai/install.sh", $null, $null),
-    @("opencode", "opencode", "opencode", $null, $null, $null, "opencode-ai/opencode", "https://opencode.ai/install", $null, $null),
+    @("opencode", "opencode", "opencode-ai", $null, $null, $null, "opencode-ai/opencode", "https://opencode.ai/install", $null, $null),
     @("codex", "codex", "@openai/codex", $null, $null, $null, "openai/codex", "https://cli.openai.com/install.sh", $null, $null),
     @("gemini", "gemini", "@google/gemini-cli", $null, $null, $null, "google-gemini/gemini-cli", $null, $null, $null),
     @("goose", "goose", $null, "block-goose-cli", $null, $null, "block/goose", "https://github.com/block/goose/releases/download/stable/download_cli.sh", $null, $null),
@@ -278,7 +278,7 @@ function Backup-Configs {
         return
     }
 
-    $backupDir = "$env:USERPROFILE\.config\kit-update\backups\$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+    $backupDir = "$env:USERPROFILE\.config\kitup\backups\$(Get-Date -Format 'yyyyMMdd_HHmmss')"
     New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
 
     $configs = @(
@@ -297,7 +297,7 @@ function Backup-Configs {
     }
 
     Write-Success "Configuration backed up to $backupDir"
-    $backupDir | Out-File "$env:USERPROFILE\.config\kit-update\last_backup"
+    $backupDir | Out-File "$env:USERPROFILE\.config\kitup\last_backup"
 }
 
 # Show status
@@ -495,13 +495,13 @@ function Update-Specific {
 # Show help
 function Show-Help {
     Write-Host @"
-kit-update v$VERSION
+kitup v$VERSION
 
 A unified updater for AI coding assistants
 Supports: Claude Code, OpenCode, Codex, Gemini CLI, Goose, Aider
 
 Usage:
-  kit-update [options] [tool1] [tool2] ...
+  kitup [options] [tool1] [tool2] ...
 
 Options:
   -h, --help          Show this help message
@@ -539,7 +539,7 @@ function Main {
         $arg = $argsList[$i]
         switch ($arg) {
             { $_ -in "-h", "--help" } { Show-Help; exit 0 }
-            { $_ -in "-v", "--version" } { Write-Host "kit-update v$VERSION"; exit 0 }
+            { $_ -in "-v", "--version" } { Write-Host "kitup v$VERSION"; exit 0 }
             { $_ -in "-l", "--list" } { List-Tools; exit 0 }
             { $_ -in "-s", "--status" } { Show-Status; exit 0 }
             "-a" { $script:UPDATE_ALL = $true }
@@ -553,7 +553,7 @@ function Main {
             "-b" { $script:BACKUP_CONFIG = $true }
             "--backup" { $script:BACKUP_CONFIG = $true }
             "--restore" {
-                $lastBackupFile = "$env:USERPROFILE\.config\kit-update\last_backup"
+                $lastBackupFile = "$env:USERPROFILE\.config\kitup\last_backup"
                 if (Test-Path $lastBackupFile) {
                     $backupDir = Get-Content $lastBackupFile
                     if (Test-Path $backupDir) {

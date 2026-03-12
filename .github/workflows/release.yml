@@ -20,7 +20,7 @@ jobs:
       - name: Lint shell scripts
         run: |
           shellcheck install.sh
-          shellcheck kit-update.sh
+          shellcheck kitup.sh
 
       - name: Lint PowerShell scripts
         shell: pwsh
@@ -55,22 +55,22 @@ jobs:
         shell: pwsh
         run: |
           Get-Command install.ps1
-          Get-Command kit-update.ps1
+          Get-Command kitup.ps1
 
-      - name: Test update-ai-tools --help (Unix)
+      - name: Test kitup --help (Unix)
         if: runner.os != 'Windows'
         run: |
-          ./kit-update.sh --help
+          ./kitup.sh --help
 
-      - name: Test update-ai-tools --list (Unix)
+      - name: Test kitup --list (Unix)
         if: runner.os != 'Windows'
         run: |
-          ./kit-update.sh --list
+          ./kitup.sh --list
 
-      - name: Test update-ai-tools --status (Unix)
+      - name: Test kitup --status (Unix)
         if: runner.os != 'Windows'
         run: |
-          ./kit-update.sh --status
+          ./kitup.sh --status
 
   release:
     name: Create Release
@@ -85,21 +85,21 @@ jobs:
       - name: Generate checksums
         run: |
           sha256sum install.sh > checksums.txt
-          sha256sum kit-update.sh >> checksums.txt
+          sha256sum kitup.sh >> checksums.txt
           sha256sum install.ps1 >> checksums.txt
-          sha256sum kit-update.ps1 >> checksums.txt
+          sha256sum kitup.ps1 >> checksums.txt
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             install.sh
-            kit-update.sh
+            kitup.sh
             install.ps1
-            kit-update.ps1
+            kitup.ps1
             checksums.txt
           body: |
-            ## kit-update ${{ github.ref_name }}
+            ## kitup ${{ github.ref_name }}
 
             ### Installation
 

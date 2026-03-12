@@ -1,16 +1,16 @@
 #
-# kit-update - Windows Installation Script
+# kitup - Windows Installation Script
 # One-click installer for the AI coding tools updater
-# Usage: irm https://raw.githubusercontent.com/volcanicll/kit-update/main/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/volcanicll/kitup/main/install.ps1 | iex
 #
 
 $ErrorActionPreference = "Stop"
 
 # Configuration
 $RepoOwner = $env:REPO_OWNER -or "volcanicll"
-$RepoName = $env:REPO_NAME -or "kit-update"
+$RepoName = $env:REPO_NAME -or "kitup"
 $Version = $env:VERSION -or "main"
-$InstallDir = $env:INSTALL_DIR -or "$env:LOCALAPPDATA\kit-update"
+$InstallDir = $env:INSTALL_DIR -or "$env:LOCALAPPDATA\kitup"
 
 # Colors for output (if supported)
 function Write-Info { param($Message) Write-Host "[INFO] $Message" -ForegroundColor Cyan }
@@ -87,11 +87,11 @@ function Install-Updater {
     }
 
     # Download the main script
-    $scriptUrl = "https://raw.githubusercontent.com/$RepoOwner/$RepoName/$Version/kit-update.ps1"
-    $scriptPath = Join-Path $InstallDir "kit-update.ps1"
-    $wrapperPath = Join-Path $InstallDir "kit-update.bat"
+    $scriptUrl = "https://raw.githubusercontent.com/$RepoOwner/$RepoName/$Version/kitup.ps1"
+    $scriptPath = Join-Path $InstallDir "kitup.ps1"
+    $wrapperPath = Join-Path $InstallDir "kitup.bat"
 
-    Write-Info "Downloading kit-update..."
+    Write-Info "Downloading kitup..."
     Write-Info "URL: $scriptUrl"
 
     if (!(Download-File -Url $scriptUrl -OutputPath $scriptPath)) {
@@ -100,7 +100,7 @@ function Install-Updater {
         exit 1
     }
 
-    Write-Success "Downloaded kit-update.ps1 to $scriptPath"
+    Write-Success "Downloaded kitup.ps1 to $scriptPath"
 
     # Create wrapper script
     Create-Wrapper -ScriptPath $scriptPath -WrapperPath $wrapperPath
@@ -113,19 +113,19 @@ function Install-Updater {
     Write-Success "Installation complete!"
     Write-Host ""
     Write-Info "Usage:"
-    Write-Host "  kit-update --help       Show help information"
-    Write-Host "  kit-update --status     Check installed AI tools status"
-    Write-Host "  kit-update --all        Update all installed AI tools"
+    Write-Host "  kitup --help       Show help information"
+    Write-Host "  kitup --status     Check installed AI tools status"
+    Write-Host "  kitup --all        Update all installed AI tools"
     Write-Host ""
-    Write-Info "To get started, run: kit-update --status"
+    Write-Info "To get started, run: kitup --status"
 }
 
 # Uninstall function
 function Uninstall-Updater {
-    Write-Info "Uninstalling kit-update..."
+    Write-Info "Uninstalling kitup..."
 
-    $scriptPath = Join-Path $InstallDir "kit-update.ps1"
-    $wrapperPath = Join-Path $InstallDir "kit-update.bat"
+    $scriptPath = Join-Path $InstallDir "kitup.ps1"
+    $wrapperPath = Join-Path $InstallDir "kitup.bat"
 
     if (Test-Path $wrapperPath) {
         Remove-Item $wrapperPath -Force
@@ -150,7 +150,7 @@ function Uninstall-Updater {
 
 # Show help
 function Show-Help {
-    Write-Host "kit-update - Installer"
+    Write-Host "kitup - Installer"
     Write-Host ""
     Write-Host "Usage:"
     Write-Host "  irm https://.../install.ps1 | iex              # Install"
@@ -158,13 +158,13 @@ function Show-Help {
     Write-Host ""
     Write-Host "Environment variables:"
     Write-Host "  REPO_OWNER    GitHub repository owner (default: yourusername)"
-    Write-Host "  REPO_NAME     GitHub repository name (default: kit-update)"
+    Write-Host "  REPO_NAME     GitHub repository name (default: kitup)"
     Write-Host "  VERSION       Version to install (default: main)"
-    Write-Host "  INSTALL_DIR   Installation directory (default: %LOCALAPPDATA%\kit-update)"
+    Write-Host "  INSTALL_DIR   Installation directory (default: %LOCALAPPDATA%\kitup)"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  --help        Show this help message"
-    Write-Host "  --uninstall   Uninstall kit-update"
+    Write-Host "  --uninstall   Uninstall kitup"
     Write-Host "  --version     Show installer version"
 }
 
@@ -180,7 +180,7 @@ if ($args -contains "--uninstall") {
 }
 
 if ($args -contains "--version" -or $args -contains "-v") {
-    Write-Host "kit-update Installer v1.0.0"
+    Write-Host "kitup Installer v1.0.0"
     exit 0
 }
 

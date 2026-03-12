@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# kit-update
+# kitup
 # A unified updater for AI coding assistants
 # Supports: Claude Code, OpenCode, Codex, Gemini CLI, Goose, Aider
 #
@@ -30,7 +30,7 @@ VERBOSE=false
 # Format: name|command|npm_package|brew_formula|pipx_package|uv_package|github_repo|install_url
 declare -a TOOLS=(
     "claude|claude|@anthropic-ai/claude-code|anthropic-ai/tap/claude-code|||anthropics/claude-code|https://claude.ai/install.sh"
-    "opencode|opencode|opencode|anomalyco/tap/opencode|||opencode-ai/opencode|https://opencode.ai/install"
+    "opencode|opencode|opencode-ai|opencode|||opencode-ai/opencode|https://opencode.ai/install"
     "codex|codex|@openai/codex|codex|||openai/codex|https://cli.openai.com/install.sh"
     "gemini|gemini|@google/gemini-cli|gemini-cli|||google-gemini/gemini-cli|"
     "goose|goose||block-goose-cli|||block/goose|https://github.com/block/goose/releases/download/stable/download_cli.sh"
@@ -204,7 +204,7 @@ get_pypi_latest_version() {
     fi
 }
 
-# Get latest version for a tool
+# Get latest version for a tool - tries all available sources
 get_latest_version() {
     local method="$1"
     local npm_pkg="$2"
@@ -212,34 +212,37 @@ get_latest_version() {
     local pipx_pkg="$4"
     local uv_pkg="$5"
     local github_repo="$6"
+    local latest_ver=""
 
-    case "$method" in
-        npm)
-            get_npm_latest_version "$npm_pkg"
-            ;;
-        brew)
-            get_brew_latest_version "$brew_formula"
-            ;;
-        pipx|uv)
-            if [ -n "$pipx_pkg" ]; then
-                get_pypi_latest_version "$pipx_pkg"
-            elif [ -n "$uv_pkg" ]; then
-                get_pypi_latest_version "$uv_pkg"
-            else
-                echo ""
-            fi
-            ;;
-        standalone|unknown)
-            if [ -n "$github_repo" ]; then
-                get_github_latest_version "$github_repo"
-            else
-                echo ""
-            fi
-            ;;
-        *)
-            echo ""
-            ;;
-    esac
+    # Try npm first (usually most up-to-date for npm packages)
+    if [ -n "$npm_pkg" ]; then
+        latest_ver=$(get_npm_latest_version "$npm_pkg")
+        [ -n "$latest_ver" ] && { echo "$latest_ver"; return; }
+    fi
+
+    # Try PyPI for pipx/uv packages
+    if [ -n "$pipx_pkg" ]; then
+        latest_ver=$(get_pypi_latest_version "$pipx_pkg")
+        [ -n "$latest_ver" ] && { echo "$latest_ver"; return; }
+    fi
+    if [ -n "$uv_pkg" ]; then
+        latest_ver=$(get_pypi_latest_version "$uv_pkg")
+        [ -n "$latest_ver" ] && { echo "$latest_ver"; return; }
+    fi
+
+    # Try Homebrew
+    if [ -n "$brew_formula" ]; then
+        latest_ver=$(get_brew_latest_version "$brew_formula")
+        [ -n "$latest_ver" ] && { echo "$latest_ver"; return; }
+    fi
+
+    # Try GitHub releases as fallback
+    if [ -n "$github_repo" ]; then
+        latest_ver=$(get_github_latest_version "$github_repo")
+        [ -n "$latest_ver" ] && { echo "$latest_ver"; return; }
+    fi
+
+    echo ""
 }
 
 # Update a tool using specific method
@@ -330,7 +333,7 @@ install_tool() {
 
 # Backup configuration
 backup_configs() {
-    local backup_dir="$HOME/.config/kit-update/backups/$(date +%Y%m%d_%H%M%S)"
+    local backup_dir="$HOME/.config/kitup/backups/$(date +%Y%m%d_%H%M%S)"
 
     if [ "$DRY_RUN" = true ]; then
         print_info "[DRY RUN] Would backup configs to $backup_dir"
@@ -357,7 +360,7 @@ backup_configs() {
     done
 
     print_success "Configuration backed up to $backup_dir"
-    echo "$backup_dir" > "$HOME/.config/kit-update/last_backup"
+    echo "$backup_dir" > "$HOME/.config/kitup/last_backup"
 }
 
 # Show status of all tools
@@ -536,13 +539,13 @@ update_specific() {
 # Show help
 show_help() {
     cat << EOF
-kit-update v$VERSION
+kitup v$VERSION
 
 A unified updater for AI coding assistants
 Supports: Claude Code, OpenCode, Codex, Gemini CLI, Goose, Aider
 
 Usage:
-  kit-update [options] [tool1] [tool2] ...
+  kitup [options] [tool1] [tool2] ...
 
 Options:
   -h, --help          Show this help message
@@ -558,11 +561,11 @@ Options:
   --verbose           Enable verbose output
 
 Examples:
-  kit-update --status              Check status of all tools
-  kit-update --all                 Update all installed tools
-  kit-update --all --install       Update all and install missing tools
-  kit-update claude codex          Update specific tools
-  kit-update --all --dry-run       Preview what would be updated
+  kitup --status              Check status of all tools
+  kitup --all                 Update all installed tools
+  kitup --all --install       Update all and install missing tools
+  kitup claude codex          Update specific tools
+  kitup --all --dry-run       Preview what would be updated
 
 Environment Variables:
   GITHUB_TOKEN        GitHub API token (for higher rate limits)
@@ -580,7 +583,7 @@ main() {
                 exit 0
                 ;;
             -v|--version)
-                echo "kit-update v$VERSION"
+                echo "kitup v$VERSION"
                 exit 0
                 ;;
             -l|--list)
@@ -633,7 +636,7 @@ main() {
 
     # Handle restore
     if [ "$RESTORE_CONFIG" = true ]; then
-        if [ -f "$HOME/.config/kit-update/last_backup" ]; then
+        if [ -f "$HOME/.config/kitup/last_backup" ]; then
             local backup_dir
             backup_dir=$(cat "$HOME/.config/update-ai-tools/last_backup")
             if [ -d "$backup_dir" ]; then
