@@ -7,6 +7,9 @@
 
 set -e
 
+# Version - should match kitup.sh
+INSTALLER_VERSION="0.0.1"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -273,7 +276,7 @@ for arg in "$@"; do
             exit 0
             ;;
         --version|-v)
-            echo "kitup Installer v1.0.0"
+            echo "kitup Installer v$INSTALLER_VERSION"
             exit 0
             ;;
     esac

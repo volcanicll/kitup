@@ -6,6 +6,9 @@
 
 $ErrorActionPreference = "Stop"
 
+# Version - should match kitup.ps1
+$script:INSTALLER_VERSION = "0.0.1"
+
 # Configuration
 $RepoOwner = $env:REPO_OWNER -or "volcanicll"
 $RepoName = $env:REPO_NAME -or "kitup"
@@ -180,7 +183,7 @@ if ($args -contains "--uninstall") {
 }
 
 if ($args -contains "--version" -or $args -contains "-v") {
-    Write-Host "kitup Installer v1.0.0"
+    Write-Host "kitup Installer v$INSTALLER_VERSION"
     exit 0
 }
 
