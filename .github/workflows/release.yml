@@ -1,0 +1,120 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    name: Lint Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Lint shell scripts
+        run: |
+          shellcheck install.sh
+          shellcheck update-ai-tools.sh
+
+      - name: Lint PowerShell scripts
+        shell: pwsh
+        run: |
+          $scripts = Get-ChildItem -Path *.ps1
+          foreach ($script in $scripts) {
+            $errors = Invoke-ScriptAnalyzer -Path $script.FullName
+            if ($errors) {
+              $errors | Format-Table
+              exit 1
+            }
+          }
+
+  test:
+    name: Test Scripts
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test install script (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          chmod +x install.sh update-ai-tools.sh
+          bash -n install.sh
+          bash -n update-ai-tools.sh
+
+      - name: Test install script (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-Command install.ps1
+          Get-Command update-ai-tools.ps1
+
+      - name: Test update-ai-tools --help (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          ./update-ai-tools.sh --help
+
+      - name: Test update-ai-tools --list (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          ./update-ai-tools.sh --list
+
+      - name: Test update-ai-tools --status (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          ./update-ai-tools.sh --status
+
+  release:
+    name: Create Release
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate checksums
+        run: |
+          sha256sum install.sh > checksums.txt
+          sha256sum update-ai-tools.sh >> checksums.txt
+          sha256sum install.ps1 >> checksums.txt
+          sha256sum update-ai-tools.ps1 >> checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            install.sh
+            update-ai-tools.sh
+            install.ps1
+            update-ai-tools.ps1
+            checksums.txt
+          body: |
+            ## AI Tools Updater ${{ github.ref_name }}
+
+            ### Installation
+
+            **macOS / Linux:**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/install.sh | bash
+            ```
+
+            **Windows:**
+            ```powershell
+            irm https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/install.ps1 | iex
+            ```
+
+            ### Checksums
+            ```
+            ${{ steps.checksums.outputs.checksums }}
+            ```
+          generate_release_notes: true
