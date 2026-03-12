@@ -34,6 +34,14 @@ The bootstrap installer is still platform-specific:
 
 After installation, the command users run is unified as `kitup`.
 
+## kitup Self-Update Notice
+
+When users run `kitup`, the CLI checks whether a newer `kitup` release is available and prints an upgrade command if needed.
+
+- The check only happens while the user is actively using `kitup`
+- Results are cached locally for 24 hours to avoid repeated network calls
+- Set `KITUP_SKIP_SELF_UPDATE_CHECK=1` to disable the notice
+
 ## Installation
 
 ### macOS / Linux

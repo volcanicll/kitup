@@ -47,6 +47,7 @@ This is a monorepo containing the following packages:
 - Unified CLI entrypoint: installers now place a single `kitup` command in your PATH and dispatch to the platform-specific implementation internally.
 - Platform-specific bootstrap: the initial installer still uses `install.sh` on Unix-like systems and `install.ps1` on Windows, but both install the same user-facing `kitup` command.
 - PATH-aware updates: when multiple installations exist, `kitup` now prefers the binary currently selected by your shell instead of blindly updating another package-manager copy.
+- In-use upgrade notice: when users run `kitup`, it checks whether `kitup` itself has a newer release and prints an upgrade command if needed.
 - Windows-native package managers: the PowerShell implementation now supports Chocolatey and Scoop in addition to npm, pipx, uv, and official installers.
 - Regression coverage: `packages/cli` now ships repeatable shell regression tests for PATH priority, restore flow, and entrypoint dispatch.
 

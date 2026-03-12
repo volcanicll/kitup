@@ -25,6 +25,9 @@ FORCE=false
 INSTALL_MISSING=false
 BACKUP_CONFIG=false
 VERBOSE=false
+RESTORE_CONFIG=false
+SELF_UPDATE_TTL_SECONDS="${KITUP_SELF_UPDATE_TTL_SECONDS:-86400}"
+SELF_UPDATE_CACHE_FILE="${HOME}/.config/kitup/self_update_check"
 
 # Tool definitions
 # Format: name|command|npm_package|brew_formula|pipx_package|uv_package|github_repo|install_url
@@ -311,6 +314,8 @@ get_github_latest_version() {
     local repo="$1"
     if command_exists curl && command_exists jq; then
         parse_version "$(curl -s "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null | jq -r '.tag_name' 2>/dev/null || echo "")"
+    elif command_exists curl; then
+        parse_version "$(curl -s "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null | tr -d '\n' | sed -n 's/.*"tag_name":"\([^"]*\)".*/\1/p' | head -1)"
     else
         echo ""
     fi
@@ -380,6 +385,97 @@ get_latest_version() {
     fi
 
     echo ""
+}
+
+version_is_newer() {
+    local candidate="$1"
+    local current="$2"
+    local candidate_base current_base
+    local IFS=.
+    local -a candidate_parts current_parts
+
+    candidate_base=$(echo "$candidate" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
+    current_base=$(echo "$current" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
+
+    [ -z "$candidate_base" ] || [ -z "$current_base" ] && return 1
+
+    read -r -a candidate_parts <<< "$candidate_base"
+    read -r -a current_parts <<< "$current_base"
+
+    for idx in 0 1 2; do
+        local candidate_num="${candidate_parts[$idx]:-0}"
+        local current_num="${current_parts[$idx]:-0}"
+        if (( candidate_num > current_num )); then
+            return 0
+        fi
+        if (( candidate_num < current_num )); then
+            return 1
+        fi
+    done
+
+    return 1
+}
+
+get_cached_self_update_version() {
+    [ -f "$SELF_UPDATE_CACHE_FILE" ] || return 1
+
+    local checked_at cached_version now
+    checked_at=$(sed -n '1p' "$SELF_UPDATE_CACHE_FILE" 2>/dev/null)
+    cached_version=$(sed -n '2p' "$SELF_UPDATE_CACHE_FILE" 2>/dev/null)
+    now=$(date +%s 2>/dev/null || echo "")
+
+    [ -n "$checked_at" ] || return 1
+    [ -n "$cached_version" ] || return 1
+    [ -n "$now" ] || return 1
+    [[ "$checked_at" =~ ^[0-9]+$ ]] || return 1
+
+    if (( now - checked_at <= SELF_UPDATE_TTL_SECONDS )); then
+        echo "$cached_version"
+        return 0
+    fi
+
+    return 1
+}
+
+write_self_update_cache() {
+    local latest_version="$1"
+    local config_dir checked_at
+
+    config_dir=$(dirname "$SELF_UPDATE_CACHE_FILE")
+    mkdir -p "$config_dir"
+    checked_at=$(date +%s 2>/dev/null || echo "0")
+    printf '%s\n%s\n' "$checked_at" "$latest_version" > "$SELF_UPDATE_CACHE_FILE"
+}
+
+get_kitup_latest_version() {
+    local cached_version
+    cached_version=$(get_cached_self_update_version) || true
+    if [ -n "$cached_version" ]; then
+        echo "$cached_version"
+        return
+    fi
+
+    local latest_version
+    latest_version=$(get_github_latest_version "volcanicll/kitup")
+    if [ -n "$latest_version" ]; then
+        write_self_update_cache "$latest_version"
+    fi
+    echo "$latest_version"
+}
+
+notify_self_update() {
+    [ "${KITUP_SKIP_SELF_UPDATE_CHECK:-0}" = "1" ] && return
+
+    local latest_version
+    latest_version=$(get_kitup_latest_version)
+    [ -n "$latest_version" ] || return
+
+    if version_is_newer "$latest_version" "$VERSION"; then
+        printf "\n"
+        print_warning "A newer kitup version is available: $latest_version (current: $VERSION)"
+        print_info "Upgrade with: curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.sh | bash"
+        printf "\n"
+    fi
 }
 
 # Update a tool using specific method
@@ -752,6 +848,8 @@ Examples:
 
 Environment Variables:
   GITHUB_TOKEN        GitHub API token (for higher rate limits)
+  KITUP_SKIP_SELF_UPDATE_CHECK=1
+                      Disable the once-per-use kitup version check
 EOF
 }
 
@@ -836,6 +934,8 @@ main() {
         fi
         exit 0
     fi
+
+    notify_self_update
 
     # Show status if no arguments
     if [ ${#args[@]} -eq 0 ] && [ "$UPDATE_ALL" != true ]; then

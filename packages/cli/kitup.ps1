@@ -15,6 +15,8 @@ $script:FORCE = $false
 $script:INSTALL_MISSING = $false
 $script:BACKUP_CONFIG = $false
 $script:VERBOSE = $false
+$script:SELF_UPDATE_TTL_SECONDS = if ($env:KITUP_SELF_UPDATE_TTL_SECONDS) { [int]$env:KITUP_SELF_UPDATE_TTL_SECONDS } else { 86400 }
+$script:SELF_UPDATE_CACHE_FILE = Join-Path $HOME ".config/kitup/self_update_check"
 
 # Tool definitions
 # Format: Name, Command, NpmPackage, BrewFormula, PipxPackage, UvPackage, GitHubRepo, InstallUrl, ChocoPackage, ScoopPackage
@@ -337,6 +339,74 @@ function Get-LatestVersion {
             }
             return $null
         }
+    }
+}
+
+function Test-VersionNewer {
+    param($Candidate, $Current)
+
+    $candidateBase = Get-ParsedVersion $Candidate
+    $currentBase = Get-ParsedVersion $Current
+    if (!$candidateBase -or !$currentBase) { return $false }
+
+    try {
+        return ([version]$candidateBase) -gt ([version]$currentBase)
+    } catch {
+        return $false
+    }
+}
+
+function Get-CachedSelfUpdateVersion {
+    if (!(Test-Path $script:SELF_UPDATE_CACHE_FILE)) { return $null }
+
+    try {
+        $lines = Get-Content $script:SELF_UPDATE_CACHE_FILE -ErrorAction Stop
+        if ($lines.Count -lt 2) { return $null }
+
+        $checkedAt = 0L
+        if (!([long]::TryParse($lines[0], [ref]$checkedAt))) { return $null }
+
+        $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+        if (($now - $checkedAt) -le $script:SELF_UPDATE_TTL_SECONDS) {
+            return $lines[1]
+        }
+    } catch {}
+
+    return $null
+}
+
+function Set-SelfUpdateCache {
+    param($LatestVersion)
+
+    $cacheDir = Split-Path -Parent $script:SELF_UPDATE_CACHE_FILE
+    New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null
+
+    $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    @("$now", "$LatestVersion") | Set-Content $script:SELF_UPDATE_CACHE_FILE
+}
+
+function Get-KitupLatestVersion {
+    $cachedVersion = Get-CachedSelfUpdateVersion
+    if ($cachedVersion) { return $cachedVersion }
+
+    $latestVersion = Get-GitHubLatestVersion "volcanicll/kitup"
+    if ($latestVersion) {
+        Set-SelfUpdateCache $latestVersion
+    }
+    return $latestVersion
+}
+
+function Show-SelfUpdateNotice {
+    if ($env:KITUP_SKIP_SELF_UPDATE_CHECK -eq "1") { return }
+
+    $latestVersion = Get-KitupLatestVersion
+    if (!$latestVersion) { return }
+
+    if (Test-VersionNewer $latestVersion $script:VERSION) {
+        Write-Host ""
+        Write-Warning "A newer kitup version is available: $latestVersion (current: $script:VERSION)"
+        Write-Info "Upgrade with: irm https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.ps1 | iex"
+        Write-Host ""
     }
 }
 
@@ -761,6 +831,8 @@ Examples:
 
 Environment Variables:
   GITHUB_TOKEN        GitHub API token (for higher rate limits)
+  KITUP_SKIP_SELF_UPDATE_CHECK=1
+                      Disable the once-per-use kitup version check
 "@
 }
 
@@ -818,6 +890,8 @@ function Main {
             }
         }
     }
+
+    Show-SelfUpdateNotice
 
     # Show status if no arguments
     if ($positionalArgs.Count -eq 0 -and !$script:UPDATE_ALL) {
