@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# AI Tools Updater
+# kit-update
 # A unified updater for AI coding assistants
 # Supports: Claude Code, OpenCode, Codex, Gemini CLI, Goose, Aider
 #
@@ -8,7 +8,7 @@
 set -e
 
 # Version
-VERSION="1.0.0"
+VERSION="0.0.1"
 
 # Colors for output
 RED='\033[0;31m'
@@ -330,7 +330,7 @@ install_tool() {
 
 # Backup configuration
 backup_configs() {
-    local backup_dir="$HOME/.config/update-ai-tools/backups/$(date +%Y%m%d_%H%M%S)"
+    local backup_dir="$HOME/.config/kit-update/backups/$(date +%Y%m%d_%H%M%S)"
 
     if [ "$DRY_RUN" = true ]; then
         print_info "[DRY RUN] Would backup configs to $backup_dir"
@@ -357,7 +357,7 @@ backup_configs() {
     done
 
     print_success "Configuration backed up to $backup_dir"
-    echo "$backup_dir" > "$HOME/.config/update-ai-tools/last_backup"
+    echo "$backup_dir" > "$HOME/.config/kit-update/last_backup"
 }
 
 # Show status of all tools
@@ -536,13 +536,13 @@ update_specific() {
 # Show help
 show_help() {
     cat << EOF
-AI Tools Updater v$VERSION
+kit-update v$VERSION
 
 A unified updater for AI coding assistants
 Supports: Claude Code, OpenCode, Codex, Gemini CLI, Goose, Aider
 
 Usage:
-  update-ai-tools [options] [tool1] [tool2] ...
+  kit-update [options] [tool1] [tool2] ...
 
 Options:
   -h, --help          Show this help message
@@ -558,11 +558,11 @@ Options:
   --verbose           Enable verbose output
 
 Examples:
-  update-ai-tools --status              Check status of all tools
-  update-ai-tools --all                 Update all installed tools
-  update-ai-tools --all --install       Update all and install missing tools
-  update-ai-tools claude codex          Update specific tools
-  update-ai-tools --all --dry-run       Preview what would be updated
+  kit-update --status              Check status of all tools
+  kit-update --all                 Update all installed tools
+  kit-update --all --install       Update all and install missing tools
+  kit-update claude codex          Update specific tools
+  kit-update --all --dry-run       Preview what would be updated
 
 Environment Variables:
   GITHUB_TOKEN        GitHub API token (for higher rate limits)
@@ -580,7 +580,7 @@ main() {
                 exit 0
                 ;;
             -v|--version)
-                echo "AI Tools Updater v$VERSION"
+                echo "kit-update v$VERSION"
                 exit 0
                 ;;
             -l|--list)
@@ -633,7 +633,7 @@ main() {
 
     # Handle restore
     if [ "$RESTORE_CONFIG" = true ]; then
-        if [ -f "$HOME/.config/update-ai-tools/last_backup" ]; then
+        if [ -f "$HOME/.config/kit-update/last_backup" ]; then
             local backup_dir
             backup_dir=$(cat "$HOME/.config/update-ai-tools/last_backup")
             if [ -d "$backup_dir" ]; then

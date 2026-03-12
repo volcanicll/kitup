@@ -1,5 +1,5 @@
 #
-# AI Tools Updater
+# kit-update
 # A unified updater for AI coding assistants (Windows PowerShell version)
 # Supports: Claude Code, OpenCode, Codex, Gemini CLI, Goose, Aider
 #
@@ -278,7 +278,7 @@ function Backup-Configs {
         return
     }
 
-    $backupDir = "$env:USERPROFILE\.config\update-ai-tools\backups\$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+    $backupDir = "$env:USERPROFILE\.config\kit-update\backups\$(Get-Date -Format 'yyyyMMdd_HHmmss')"
     New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
 
     $configs = @(
@@ -297,7 +297,7 @@ function Backup-Configs {
     }
 
     Write-Success "Configuration backed up to $backupDir"
-    $backupDir | Out-File "$env:USERPROFILE\.config\update-ai-tools\last_backup"
+    $backupDir | Out-File "$env:USERPROFILE\.config\kit-update\last_backup"
 }
 
 # Show status
@@ -495,13 +495,13 @@ function Update-Specific {
 # Show help
 function Show-Help {
     Write-Host @"
-AI Tools Updater v$VERSION
+kit-update v$VERSION
 
 A unified updater for AI coding assistants
 Supports: Claude Code, OpenCode, Codex, Gemini CLI, Goose, Aider
 
 Usage:
-  update-ai-tools [options] [tool1] [tool2] ...
+  kit-update [options] [tool1] [tool2] ...
 
 Options:
   -h, --help          Show this help message
@@ -539,7 +539,7 @@ function Main {
         $arg = $argsList[$i]
         switch ($arg) {
             { $_ -in "-h", "--help" } { Show-Help; exit 0 }
-            { $_ -in "-v", "--version" } { Write-Host "AI Tools Updater v$VERSION"; exit 0 }
+            { $_ -in "-v", "--version" } { Write-Host "kit-update v$VERSION"; exit 0 }
             { $_ -in "-l", "--list" } { List-Tools; exit 0 }
             { $_ -in "-s", "--status" } { Show-Status; exit 0 }
             "-a" { $script:UPDATE_ALL = $true }
@@ -553,7 +553,7 @@ function Main {
             "-b" { $script:BACKUP_CONFIG = $true }
             "--backup" { $script:BACKUP_CONFIG = $true }
             "--restore" {
-                $lastBackupFile = "$env:USERPROFILE\.config\update-ai-tools\last_backup"
+                $lastBackupFile = "$env:USERPROFILE\.config\kit-update\last_backup"
                 if (Test-Path $lastBackupFile) {
                     $backupDir = Get-Content $lastBackupFile
                     if (Test-Path $backupDir) {

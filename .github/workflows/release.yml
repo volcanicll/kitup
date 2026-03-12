@@ -20,7 +20,7 @@ jobs:
       - name: Lint shell scripts
         run: |
           shellcheck install.sh
-          shellcheck update-ai-tools.sh
+          shellcheck kit-update.sh
 
       - name: Lint PowerShell scripts
         shell: pwsh
@@ -46,31 +46,31 @@ jobs:
       - name: Test install script (Unix)
         if: runner.os != 'Windows'
         run: |
-          chmod +x install.sh update-ai-tools.sh
+          chmod +x install.sh kit-update.sh
           bash -n install.sh
-          bash -n update-ai-tools.sh
+          bash -n kit-update.sh
 
       - name: Test install script (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           Get-Command install.ps1
-          Get-Command update-ai-tools.ps1
+          Get-Command kit-update.ps1
 
       - name: Test update-ai-tools --help (Unix)
         if: runner.os != 'Windows'
         run: |
-          ./update-ai-tools.sh --help
+          ./kit-update.sh --help
 
       - name: Test update-ai-tools --list (Unix)
         if: runner.os != 'Windows'
         run: |
-          ./update-ai-tools.sh --list
+          ./kit-update.sh --list
 
       - name: Test update-ai-tools --status (Unix)
         if: runner.os != 'Windows'
         run: |
-          ./update-ai-tools.sh --status
+          ./kit-update.sh --status
 
   release:
     name: Create Release
@@ -85,21 +85,21 @@ jobs:
       - name: Generate checksums
         run: |
           sha256sum install.sh > checksums.txt
-          sha256sum update-ai-tools.sh >> checksums.txt
+          sha256sum kit-update.sh >> checksums.txt
           sha256sum install.ps1 >> checksums.txt
-          sha256sum update-ai-tools.ps1 >> checksums.txt
+          sha256sum kit-update.ps1 >> checksums.txt
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             install.sh
-            update-ai-tools.sh
+            kit-update.sh
             install.ps1
-            update-ai-tools.ps1
+            kit-update.ps1
             checksums.txt
           body: |
-            ## AI Tools Updater ${{ github.ref_name }}
+            ## kit-update ${{ github.ref_name }}
 
             ### Installation
 

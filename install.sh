@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# AI Tools Updater - Installation Script
+# kit-update - Installation Script
 # One-click installer for the AI coding tools updater
-# Usage: curl -fsSL https://raw.githubusercontent.com/user/update-ai-tools/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/volcanicll/kit-update/main/install.sh | bash
 #
 
 set -e
@@ -15,12 +15,12 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-REPO_OWNER="${REPO_OWNER:-yourusername}"
-REPO_NAME="${REPO_NAME:-update-ai-tools}"
+REPO_OWNER="${REPO_OWNER:-volcanicll}"
+REPO_NAME="${REPO_NAME:-kit-update}"
 VERSION="${VERSION:-main}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
-SCRIPT_NAME="update-ai-tools.sh"
-WRAPPER_NAME="update-ai-tools"
+SCRIPT_NAME="kit-update.sh"
+WRAPPER_NAME="kit-update"
 
 # Print functions
 print_info() {
@@ -137,10 +137,10 @@ create_wrapper() {
 
     cat > "$wrapper_path" << 'EOF'
 #!/bin/bash
-# Wrapper script for update-ai-tools
+# Wrapper script for kit-update
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPT_NAME="update-ai-tools.sh"
+SCRIPT_NAME="kit-update.sh"
 
 if [ -f "$SCRIPT_DIR/$SCRIPT_NAME" ]; then
     exec bash "$SCRIPT_DIR/$SCRIPT_NAME" "$@"
@@ -188,7 +188,7 @@ install() {
     local script_path="$INSTALL_DIR/$SCRIPT_NAME"
     local wrapper_path="$INSTALL_DIR/$WRAPPER_NAME"
 
-    print_info "Downloading update-ai-tools..."
+    print_info "Downloading kit-update..."
     print_info "URL: $script_url"
 
     if ! download_file "$script_url" "$script_path"; then
@@ -214,16 +214,16 @@ install() {
     print_success "Installation complete!"
     echo ""
     print_info "Usage:"
-    echo "  update-ai-tools --help       Show help information"
-    echo "  update-ai-tools --status     Check installed AI tools status"
-    echo "  update-ai-tools --all        Update all installed AI tools"
+    echo "  kit-update --help       Show help information"
+    echo "  kit-update --status     Check installed AI tools status"
+    echo "  kit-update --all        Update all installed AI tools"
     echo ""
-    print_info "To get started, run: update-ai-tools --status"
+    print_info "To get started, run: kit-update --status"
 }
 
 # Uninstall function
 uninstall() {
-    print_info "Uninstalling AI Tools Updater..."
+    print_info "Uninstalling kit-update..."
 
     local script_path="$INSTALL_DIR/$SCRIPT_NAME"
     local wrapper_path="$INSTALL_DIR/$WRAPPER_NAME"
@@ -243,7 +243,7 @@ uninstall() {
 
 # Show help
 show_help() {
-    echo "AI Tools Updater - Installer"
+    echo "kit-update - Installer"
     echo ""
     echo "Usage:"
     echo "  curl -fsSL https://.../install.sh | bash              # Install"
@@ -251,13 +251,13 @@ show_help() {
     echo ""
     echo "Environment variables:"
     echo "  REPO_OWNER    GitHub repository owner (default: yourusername)"
-    echo "  REPO_NAME     GitHub repository name (default: update-ai-tools)"
+    echo "  REPO_NAME     GitHub repository name (default: kit-update)"
     echo "  VERSION       Version to install (default: main)"
     echo "  INSTALL_DIR   Installation directory (default: \$HOME/.local/bin)"
     echo ""
     echo "Options:"
     echo "  --help        Show this help message"
-    echo "  --uninstall   Uninstall update-ai-tools"
+    echo "  --uninstall   Uninstall kit-update"
     echo "  --version     Show installer version"
 }
 
@@ -273,7 +273,7 @@ for arg in "$@"; do
             exit 0
             ;;
         --version|-v)
-            echo "AI Tools Updater Installer v1.0.0"
+            echo "kit-update Installer v1.0.0"
             exit 0
             ;;
     esac
