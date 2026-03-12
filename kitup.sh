@@ -84,6 +84,72 @@ get_local_version() {
     parse_version "$version_str"
 }
 
+# Detect all installation methods for a tool (returns comma-separated list)
+detect_all_install_methods() {
+    local cmd="$1"
+    local npm_pkg="$2"
+    local brew_formula="$3"
+    local pipx_pkg="$4"
+    local uv_pkg="$5"
+
+    local methods=""
+    local tool_path
+    tool_path=$(which "$cmd" 2>/dev/null || echo "")
+
+    # Check npm global list
+    if [ -n "$npm_pkg" ] && command_exists npm; then
+        if npm list -g "$npm_pkg" > /dev/null 2>&1; then
+            methods="npm"
+        fi
+    fi
+
+    # Check Homebrew list
+    if [ -n "$brew_formula" ] && command_exists brew; then
+        if brew list "$brew_formula" > /dev/null 2>&1; then
+            if [ -n "$methods" ]; then
+                methods="$methods,brew"
+            else
+                methods="brew"
+            fi
+        fi
+    fi
+
+    # Check pipx
+    if [ -n "$pipx_pkg" ] && command_exists pipx; then
+        if pipx list | grep -q "$pipx_pkg"; then
+            if [ -n "$methods" ]; then
+                methods="$methods,pipx"
+            else
+                methods="pipx"
+            fi
+        fi
+    fi
+
+    # Check uv
+    if [ -n "$uv_pkg" ] && command_exists uv; then
+        if uv tool list | grep -q "$uv_pkg"; then
+            if [ -n "$methods" ]; then
+                methods="$methods,uv"
+            else
+                methods="uv"
+            fi
+        fi
+    fi
+
+    # Check current tool path for standalone
+    if [ -n "$tool_path" ]; then
+        if [[ "$tool_path" == *".local/bin"* ]] || [[ "$tool_path" == *"/usr/local/bin"* ]]; then
+            if [ -n "$methods" ]; then
+                methods="$methods,standalone"
+            else
+                methods="standalone"
+            fi
+        fi
+    fi
+
+    echo "$methods"
+}
+
 # Detect installation method for a tool
 detect_install_method() {
     local cmd="$1"
@@ -370,6 +436,8 @@ show_status() {
     printf "%-12s %-10s %-12s %-15s %-15s\n" "Tool" "Installed" "Method" "Local Version" "Latest Version"
     printf "%-12s %-10s %-12s %-15s %-15s\n" "----" "---------" "------" "-------------" "--------------"
 
+    local multi_install_tools=""
+
     for tool_def in "${TOOLS[@]}"; do
         IFS='|' read -r name cmd npm_pkg brew_formula pipx_pkg uv_pkg github_repo install_url <<< "$tool_def"
 
@@ -383,12 +451,35 @@ show_status() {
             method=$(detect_install_method "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg")
             local_ver=$(get_local_version "$cmd")
             latest_ver=$(get_latest_version "$method" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$github_repo")
+
+            # Check for multiple installations
+            local all_methods
+            all_methods=$(detect_all_install_methods "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg")
+            local method_count
+            method_count=$(echo "$all_methods" | tr ',' '\n' | wc -l)
+
+            if [ "$method_count" -gt 1 ]; then
+                method="${method}*"
+                multi_install_tools="$multi_install_tools\n  $name: $all_methods"
+            fi
         fi
 
         printf "%-12s %-10s %-12s %-15s %-15s\n" "$name" "$installed" "$method" "$local_ver" "$latest_ver"
     done
 
     printf "\n"
+
+    # Show warning for multiple installations
+    if [ -n "$multi_install_tools" ]; then
+        print_warning "Multiple installations detected (*):"
+        echo -e "$multi_install_tools"
+        echo ""
+        print_info "Options:"
+        echo "  1. Update current (PATH priority): kitup <tool>"
+        echo "  2. Update all installations: kitup <tool> --force"
+        echo "  3. Remove duplicates manually, then reinstall with preferred method"
+        echo ""
+    fi
 }
 
 # List all supported tools
