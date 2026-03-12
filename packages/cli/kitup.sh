@@ -2,13 +2,13 @@
 #
 # kitup
 # A unified updater for AI coding assistants
-# Supports: Claude Code, OpenCode, Codex, Gemini CLI, Goose, Aider
+# Supports: Claude Code, OpenCode, Codex, Gemini CLI, Kimi CLI, Cline CLI, Qwen Code, Goose, Aider
 #
 
 set -e
 
 # Version
-VERSION="0.0.1"
+VERSION="0.0.11"
 
 # Colors for output
 RED='\033[0;31m'
@@ -33,6 +33,9 @@ declare -a TOOLS=(
     "opencode|opencode|opencode-ai|opencode|||opencode-ai/opencode|https://opencode.ai/install"
     "codex|codex|@openai/codex|codex|||openai/codex|https://cli.openai.com/install.sh"
     "gemini|gemini|@google/gemini-cli|gemini-cli|||google-gemini/gemini-cli|"
+    "kimi|kimi|||kimi-cli|kimi-cli|MoonshotAI/kimi-cli|"
+    "cline|cline|cline||||cline/cline|"
+    "qwen|qwen|@qwen-code/qwen-code|qwen-code|||QwenLM/qwen-code|https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen.sh"
     "goose|goose||block-goose-cli|||block/goose|https://github.com/block/goose/releases/download/stable/download_cli.sh"
     "aider|aider||aider|aider-chat|aider-chat|Aider-AI/aider|https://aider.chat/install.sh"
 )
@@ -61,6 +64,42 @@ print_header() {
 # Check if command exists
 command_exists() {
     command -v "$1" > /dev/null 2>&1
+}
+
+get_command_path() {
+    command -v "$1" 2>/dev/null || echo ""
+}
+
+get_npm_global_prefix() {
+    if command_exists npm; then
+        npm prefix -g 2>/dev/null || echo ""
+    else
+        echo ""
+    fi
+}
+
+get_brew_prefix() {
+    if command_exists brew; then
+        brew --prefix 2>/dev/null || echo ""
+    else
+        echo ""
+    fi
+}
+
+is_standalone_path() {
+    local tool_path="$1"
+    local brew_prefix
+    brew_prefix=$(get_brew_prefix)
+
+    [[ "$tool_path" == "$HOME/.local/bin/"* ]] || [[ "$tool_path" == "$HOME/bin/"* ]] || {
+        [[ "$tool_path" == /usr/local/bin/* ]] && [ "$brew_prefix" != "/usr/local" ]
+    }
+}
+
+# Check whether a Homebrew package is installed as a cask
+is_brew_cask() {
+    local package="$1"
+    command_exists brew && brew list --cask "$package" > /dev/null 2>&1
 }
 
 # Parse version string (extract x.y.z)
@@ -94,7 +133,7 @@ detect_all_install_methods() {
 
     local methods=""
     local tool_path
-    tool_path=$(which "$cmd" 2>/dev/null || echo "")
+    tool_path=$(get_command_path "$cmd")
 
     # Check npm global list
     if [ -n "$npm_pkg" ] && command_exists npm; then
@@ -105,7 +144,7 @@ detect_all_install_methods() {
 
     # Check Homebrew list
     if [ -n "$brew_formula" ] && command_exists brew; then
-        if brew list "$brew_formula" > /dev/null 2>&1; then
+        if brew list "$brew_formula" > /dev/null 2>&1 || brew list --cask "$brew_formula" > /dev/null 2>&1; then
             if [ -n "$methods" ]; then
                 methods="$methods,brew"
             else
@@ -138,7 +177,7 @@ detect_all_install_methods() {
 
     # Check current tool path for standalone
     if [ -n "$tool_path" ]; then
-        if [[ "$tool_path" == *".local/bin"* ]] || [[ "$tool_path" == *"/usr/local/bin"* ]]; then
+        if is_standalone_path "$tool_path"; then
             if [ -n "$methods" ]; then
                 methods="$methods,standalone"
             else
@@ -159,33 +198,35 @@ detect_install_method() {
     local uv_pkg="$5"
 
     local tool_path
-    tool_path=$(which "$cmd" 2>/dev/null || echo "")
+    tool_path=$(get_command_path "$cmd")
+    local npm_prefix
+    npm_prefix=$(get_npm_global_prefix)
+    local brew_prefix
+    brew_prefix=$(get_brew_prefix)
 
     if [ -z "$tool_path" ]; then
         echo ""
         return
     fi
 
-    # Check if it's a symlink
-    if [ -L "$tool_path" ]; then
-        local link_target
-        link_target=$(readlink "$tool_path" 2>/dev/null || echo "")
-
-        # Check for Homebrew
-        if [[ "$link_target" == *"/homebrew/"* ]] || [[ "$link_target" == *"/Cellar/"* ]] || [[ "$tool_path" == *"/homebrew/"* ]]; then
-            if [ -n "$brew_formula" ]; then
-                echo "brew"
-                return
-            fi
+    # Respect the command currently selected by PATH first.
+    if [ -n "$brew_formula" ] && [ -n "$brew_prefix" ] && [[ "$tool_path" == "$brew_prefix/bin/"* ]]; then
+        if brew list "$brew_formula" > /dev/null 2>&1 || brew list --cask "$brew_formula" > /dev/null 2>&1; then
+            echo "brew"
+            return
         fi
+    fi
 
-        # Check for npm
-        if [[ "$link_target" == *"/npm/"* ]] || [[ "$link_target" == *"/.npm/"* ]] || [[ "$link_target" == *"/node_modules/"* ]]; then
-            if [ -n "$npm_pkg" ]; then
-                echo "npm"
-                return
-            fi
+    if [ -n "$npm_pkg" ] && [ -n "$npm_prefix" ] && [[ "$tool_path" == "$npm_prefix/bin/"* ]]; then
+        if npm list -g "$npm_pkg" > /dev/null 2>&1; then
+            echo "npm"
+            return
         fi
+    fi
+
+    if is_standalone_path "$tool_path"; then
+        echo "standalone"
+        return
     fi
 
     # Check npm global list
@@ -198,7 +239,7 @@ detect_install_method() {
 
     # Check Homebrew list
     if [ -n "$brew_formula" ] && command_exists brew; then
-        if brew list "$brew_formula" > /dev/null 2>&1; then
+        if brew list "$brew_formula" > /dev/null 2>&1 || brew list --cask "$brew_formula" > /dev/null 2>&1; then
             echo "brew"
             return
         fi
@@ -221,7 +262,7 @@ detect_install_method() {
     fi
 
     # Check if it's in common standalone locations
-    if [[ "$tool_path" == *".local/bin"* ]] || [[ "$tool_path" == *"/usr/local/bin"* ]]; then
+    if is_standalone_path "$tool_path"; then
         echo "standalone"
         return
     fi
@@ -234,7 +275,7 @@ detect_install_method() {
 get_npm_latest_version() {
     local pkg="$1"
     if command_exists npm; then
-        npm view "$pkg" version 2>/dev/null || echo ""
+        parse_version "$(npm view "$pkg" version 2>/dev/null || echo "")"
     else
         echo ""
     fi
@@ -243,8 +284,23 @@ get_npm_latest_version() {
 # Get latest version from Homebrew
 get_brew_latest_version() {
     local formula="$1"
-    if command_exists brew && command_exists jq; then
-        brew info "$formula" --json 2>/dev/null | jq -r '.[0].versions.stable' 2>/dev/null || echo ""
+    if command_exists brew; then
+        local version
+        if command_exists jq; then
+            version=$(brew info "$formula" --json 2>/dev/null | jq -r '.[0].versions.stable // empty' 2>/dev/null || true)
+        else
+            version=$(brew info "$formula" --json 2>/dev/null | tr -d '\n' | sed -n 's/.*"stable":"\([^"]*\)".*/\1/p' | head -1)
+        fi
+        if [ -n "$version" ]; then
+            parse_version "$version"
+            return
+        fi
+
+        if command_exists jq; then
+            parse_version "$(brew info --cask "$formula" --json=v2 2>/dev/null | jq -r '.casks[0].version // empty' 2>/dev/null || echo "")"
+        else
+            parse_version "$(brew info --cask "$formula" --json=v2 2>/dev/null | tr -d '\n' | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' | head -1)"
+        fi
     else
         echo ""
     fi
@@ -254,7 +310,7 @@ get_brew_latest_version() {
 get_github_latest_version() {
     local repo="$1"
     if command_exists curl && command_exists jq; then
-        curl -s "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null | jq -r '.tag_name' 2>/dev/null | sed 's/^v//' || echo ""
+        parse_version "$(curl -s "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null | jq -r '.tag_name' 2>/dev/null || echo "")"
     else
         echo ""
     fi
@@ -264,7 +320,7 @@ get_github_latest_version() {
 get_pypi_latest_version() {
     local pkg="$1"
     if command_exists curl && command_exists jq; then
-        curl -s "https://pypi.org/pypi/$pkg/json" 2>/dev/null | jq -r '.info.version' 2>/dev/null || echo ""
+        parse_version "$(curl -s "https://pypi.org/pypi/$pkg/json" 2>/dev/null | jq -r '.info.version' 2>/dev/null || echo "")"
     else
         echo ""
     fi
@@ -280,13 +336,30 @@ get_latest_version() {
     local github_repo="$6"
     local latest_ver=""
 
-    # Try npm first (usually most up-to-date for npm packages)
+    case "$method" in
+        npm)
+            [ -n "$npm_pkg" ] && latest_ver=$(get_npm_latest_version "$npm_pkg")
+            ;;
+        pipx)
+            [ -n "$pipx_pkg" ] && latest_ver=$(get_pypi_latest_version "$pipx_pkg")
+            ;;
+        uv)
+            [ -n "$uv_pkg" ] && latest_ver=$(get_pypi_latest_version "$uv_pkg")
+            ;;
+        brew)
+            [ -n "$brew_formula" ] && latest_ver=$(get_brew_latest_version "$brew_formula")
+            ;;
+        standalone|unknown)
+            [ -n "$github_repo" ] && latest_ver=$(get_github_latest_version "$github_repo")
+            ;;
+    esac
+    [ -n "$latest_ver" ] && { echo "$latest_ver"; return; }
+
+    # Fallbacks when detection is incomplete
     if [ -n "$npm_pkg" ]; then
         latest_ver=$(get_npm_latest_version "$npm_pkg")
         [ -n "$latest_ver" ] && { echo "$latest_ver"; return; }
     fi
-
-    # Try PyPI for pipx/uv packages
     if [ -n "$pipx_pkg" ]; then
         latest_ver=$(get_pypi_latest_version "$pipx_pkg")
         [ -n "$latest_ver" ] && { echo "$latest_ver"; return; }
@@ -295,8 +368,6 @@ get_latest_version() {
         latest_ver=$(get_pypi_latest_version "$uv_pkg")
         [ -n "$latest_ver" ] && { echo "$latest_ver"; return; }
     fi
-
-    # Try Homebrew
     if [ -n "$brew_formula" ]; then
         latest_ver=$(get_brew_latest_version "$brew_formula")
         [ -n "$latest_ver" ] && { echo "$latest_ver"; return; }
@@ -336,7 +407,11 @@ update_tool() {
         brew)
             if [ -n "$brew_formula" ]; then
                 print_info "Updating $name via Homebrew..."
-                brew upgrade "$brew_formula"
+                if is_brew_cask "$brew_formula"; then
+                    brew upgrade --cask "$brew_formula"
+                else
+                    brew upgrade "$brew_formula"
+                fi
             fi
             ;;
         pipx)
@@ -361,6 +436,7 @@ update_tool() {
                 fi
             else
                 print_warning "No update URL available for $name"
+                return 1
             fi
             ;;
     esac
@@ -372,7 +448,9 @@ install_tool() {
     local cmd="$2"
     local npm_pkg="$3"
     local brew_formula="$4"
-    local install_url="$5"
+    local pipx_pkg="$5"
+    local uv_pkg="$6"
+    local install_url="$7"
 
     if [ "$DRY_RUN" = true ]; then
         print_info "[DRY RUN] Would install $name"
@@ -384,10 +462,20 @@ install_tool() {
     # Try different installation methods in order of preference
     if [ -n "$brew_formula" ] && command_exists brew; then
         print_info "Installing $name via Homebrew..."
-        brew install "$brew_formula"
+        if brew info --cask "$brew_formula" > /dev/null 2>&1; then
+            brew install --cask "$brew_formula"
+        else
+            brew install "$brew_formula"
+        fi
     elif [ -n "$npm_pkg" ] && command_exists npm; then
         print_info "Installing $name via npm..."
         npm install -g "$npm_pkg"
+    elif [ -n "$pipx_pkg" ] && command_exists pipx; then
+        print_info "Installing $name via pipx..."
+        pipx install "$pipx_pkg"
+    elif [ -n "$uv_pkg" ] && command_exists uv; then
+        print_info "Installing $name via uv..."
+        uv tool install "$uv_pkg"
     elif [ -n "$install_url" ]; then
         print_info "Installing $name via official installer..."
         curl -fsSL "$install_url" | bash
@@ -456,7 +544,11 @@ show_status() {
             local all_methods
             all_methods=$(detect_all_install_methods "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg")
             local method_count
-            method_count=$(echo "$all_methods" | tr ',' '\n' | wc -l)
+            if [ -n "$all_methods" ]; then
+                method_count=$(echo "$all_methods" | tr ',' '\n' | sed '/^$/d' | wc -l | tr -d ' ')
+            else
+                method_count=0
+            fi
 
             if [ "$method_count" -gt 1 ]; then
                 method="${method}*"
@@ -519,14 +611,14 @@ update_all() {
 
         if ! command_exists "$cmd"; then
             if [ "$INSTALL_MISSING" = true ]; then
-                if install_tool "$name" "$cmd" "$npm_pkg" "$brew_formula" "$install_url"; then
-                    ((updated++))
+                if install_tool "$name" "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$install_url"; then
+                    updated=$((updated + 1))
                 else
-                    ((failed++))
+                    failed=$((failed + 1))
                 fi
             else
                 print_info "Skipping $name (not installed)"
-                ((skipped++))
+                skipped=$((skipped + 1))
             fi
             continue
         fi
@@ -540,23 +632,23 @@ update_all() {
 
         if [ -z "$latest_ver" ]; then
             print_warning "Cannot check latest version for $name"
-            ((skipped++))
+            skipped=$((skipped + 1))
             continue
         fi
 
         if [ "$local_ver" = "$latest_ver" ] && [ "$FORCE" = false ]; then
             print_info "$name is already up to date ($local_ver)"
-            ((skipped++))
+            skipped=$((skipped + 1))
             continue
         fi
 
         print_info "Updating $name from $local_ver to $latest_ver..."
         if update_tool "$name" "$method" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$install_url"; then
             print_success "$name updated successfully"
-            ((updated++))
+            updated=$((updated + 1))
         else
             print_error "Failed to update $name"
-            ((failed++))
+            failed=$((failed + 1))
         fi
     done
 
@@ -586,7 +678,7 @@ update_specific() {
 
                 if ! command_exists "$cmd"; then
                     if [ "$INSTALL_MISSING" = true ]; then
-                        install_tool "$name" "$cmd" "$npm_pkg" "$brew_formula" "$install_url"
+                        install_tool "$name" "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$install_url"
                     else
                         print_error "$name is not installed (use --install to install)"
                     fi
@@ -633,7 +725,7 @@ show_help() {
 kitup v$VERSION
 
 A unified updater for AI coding assistants
-Supports: Claude Code, OpenCode, Codex, Gemini CLI, Goose, Aider
+Supports: Claude Code, OpenCode, Codex, Gemini CLI, Kimi CLI, Cline CLI, Qwen Code, Goose, Aider
 
 Usage:
   kitup [options] [tool1] [tool2] ...
@@ -729,7 +821,7 @@ main() {
     if [ "$RESTORE_CONFIG" = true ]; then
         if [ -f "$HOME/.config/kitup/last_backup" ]; then
             local backup_dir
-            backup_dir=$(cat "$HOME/.config/update-ai-tools/last_backup")
+            backup_dir=$(cat "$HOME/.config/kitup/last_backup")
             if [ -d "$backup_dir" ]; then
                 print_info "Restoring configuration from $backup_dir..."
                 cp -r "$backup_dir"/* "$HOME/" 2>/dev/null || true

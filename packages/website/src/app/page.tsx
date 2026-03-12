@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Terminal,
   Sparkles,
@@ -18,6 +18,9 @@ import {
   GitBranch,
   Copy,
   Check,
+  MoonStar,
+  Workflow,
+  BrainCircuit,
 } from "lucide-react";
 
 const tools = [
@@ -33,21 +36,42 @@ const tools = [
     description: "Open source AI coding assistant",
     icon: Code2,
     color: "#00D9FF",
-    installMethods: ["npm", "brew", "curl"],
+    installMethods: ["npm", "brew", "choco", "scoop", "curl"],
   },
   {
     name: "Codex",
     description: "OpenAI's official CLI tool",
     icon: Terminal,
     color: "#10A37F",
-    installMethods: ["npm", "brew"],
+    installMethods: ["npm", "brew", "choco"],
   },
   {
     name: "Gemini CLI",
     description: "Google's Gemini command line",
     icon: Sparkles,
     color: "#4285F4",
+    installMethods: ["npm", "choco"],
+  },
+  {
+    name: "Kimi CLI",
+    description: "Moonshot AI's terminal coding assistant",
+    icon: MoonStar,
+    color: "#7CFFB2",
+    installMethods: ["pipx", "uv"],
+  },
+  {
+    name: "Cline CLI",
+    description: "Cline's command-line agent workflow",
+    icon: Workflow,
+    color: "#FF8C42",
     installMethods: ["npm"],
+  },
+  {
+    name: "Qwen Code",
+    description: "Alibaba Qwen's coding CLI",
+    icon: BrainCircuit,
+    color: "#9D7CFF",
+    installMethods: ["npm", "brew", "curl"],
   },
   {
     name: "Goose",
@@ -61,7 +85,7 @@ const tools = [
     description: "AI pair programming tool",
     icon: GitBranch,
     color: "#4A90E2",
-    installMethods: ["pip", "brew"],
+    installMethods: ["pipx", "uv", "brew"],
   },
 ];
 
@@ -73,25 +97,46 @@ const features = [
   },
   {
     icon: Shield,
-    title: "Smart Detection",
-    description: "Automatically detects installed tools and their installation methods.",
+    title: "PATH Aware",
+    description: "Prefers the binary currently selected by your shell instead of updating the wrong duplicate install.",
   },
   {
     icon: Globe,
     title: "Cross Platform",
-    description: "Works on macOS, Linux, and Windows with WSL support.",
+    description: "Works across macOS, Linux, and Windows with platform-specific implementations behind one entry command.",
   },
   {
     icon: Package,
-    title: "Multiple Sources",
-    description: "Supports npm, pip, brew, and direct installation methods.",
+    title: "Native Sources",
+    description: "Supports npm, Homebrew, pipx, uv, Chocolatey, Scoop, and official installers.",
   },
 ];
 
-const installCommands = [
-  { platform: "macOS / Linux", command: "curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.sh | bash" },
-  { platform: "Windows", command: 'irm https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.ps1 | iex' },
+const capabilityCards = [
+  {
+    title: "Stable Entry Command",
+    body: "Installers place one `kitup` entry command in PATH and dispatch to the right implementation for the host platform.",
+  },
+  {
+    title: "Windows Package Managers",
+    body: "The PowerShell implementation now supports Chocolatey and Scoop for tools that ship native Windows packages.",
+  },
+  {
+    title: "Regression Backed",
+    body: "The CLI package includes repeatable regression tests for PATH priority, restore flow, and entrypoint dispatch.",
+  },
 ];
+
+const installCommands = {
+  unix: {
+    platform: "macOS / Linux",
+    command: "curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.sh | bash",
+  },
+  windows: {
+    platform: "Windows PowerShell",
+    command: 'irm https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.ps1 | iex',
+  },
+};
 
 function AnimatedCounter({ end, duration = 2000 }: { end: number; duration?: number }) {
   const [count, setCount] = useState(0);
@@ -166,14 +211,14 @@ function TerminalDemo() {
   const terminalRef = useRef<HTMLDivElement>(null);
 
   const demoLines = [
-    { text: "kitup", type: "input" },
-    { text: "🔍 Checking for updates...", type: "output", delay: 300 },
-    { text: "✅ Claude Code: 0.2.45 → 0.2.56", type: "output", delay: 600 },
-    { text: "✅ OpenCode: 0.2.1 → 0.2.5", type: "output", delay: 900 },
-    { text: "✅ Codex: 1.0.0 (latest)", type: "output", delay: 1200 },
-    { text: "✅ Gemini CLI: 0.2.0 → 0.2.2", type: "output", delay: 1500 },
-    { text: "📦 Updating 3 packages...", type: "output", delay: 2000 },
-    { text: "✨ All tools updated successfully!", type: "output", delay: 3500 },
+    { text: "kitup --all --dry-run", type: "input" },
+    { text: "Checking installed tools and active PATH targets...", type: "output", delay: 300 },
+    { text: "claude is already up to date (2.1.74)", type: "output", delay: 700 },
+    { text: "Updating codex from 0.106.0 to 0.114.0...", type: "output", delay: 1100 },
+    { text: "[DRY RUN] Would update codex using brew", type: "output", delay: 1450 },
+    { text: "Updating gemini from 0.28.0 to 0.33.0...", type: "output", delay: 1800 },
+    { text: "[DRY RUN] Would update gemini using npm", type: "output", delay: 2150 },
+    { text: "Update Summary: Updated 2, Failed 0, Skipped 4", type: "output", delay: 2800 },
   ];
 
   useEffect(() => {
@@ -282,6 +327,20 @@ function CopyCommandBlock({ platform, command }: { platform: string; command: st
 }
 
 export default function Home() {
+  const [detectedPlatform, setDetectedPlatform] = useState<"unix" | "windows">("unix");
+
+  useEffect(() => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    if (userAgent.includes("win")) {
+      setDetectedPlatform("windows");
+    } else {
+      setDetectedPlatform("unix");
+    }
+  }, []);
+
+  const recommendedInstall = useMemo(() => installCommands[detectedPlatform], [detectedPlatform]);
+  const alternateInstall = detectedPlatform === "windows" ? installCommands.unix : installCommands.windows;
+
   return (
     <main className="min-h-screen">
       {/* Navigation */}
@@ -319,7 +378,7 @@ export default function Home() {
           <ScrollReveal>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card mb-8">
               <span className="status-dot status-dot-online" />
-              <span className="text-sm text-white/70">v0.0.1 Now Available</span>
+              <span className="text-sm text-white/70">v0.0.11 Now Available</span>
             </div>
           </ScrollReveal>
 
@@ -333,9 +392,9 @@ export default function Home() {
           </ScrollReveal>
 
           <ScrollReveal delay={200}>
-            <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-10">
-              kitup keeps Claude Code, OpenCode, Codex, Gemini CLI, Goose, and Aider up to date.
-              No more manual checking. No more outdated tools.
+              <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-10">
+              kitup keeps Claude Code, OpenCode, Codex, Gemini CLI, Kimi CLI, Cline CLI, Qwen Code, Goose, and Aider current
+              without switching package managers behind your back.
             </p>
           </ScrollReveal>
 
@@ -364,15 +423,15 @@ export default function Home() {
             <div className="grid grid-cols-3 gap-8 max-w-lg mx-auto">
               <div className="text-center">
                 <div className="text-3xl font-bold gradient-text-alt">
-                  <AnimatedCounter end={6} />
+                  <AnimatedCounter end={9} />
                 </div>
                 <div className="text-sm text-white/50 mt-1">AI Tools</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold gradient-text">
-                  <AnimatedCounter end={4} />
+              <div className="text-3xl font-bold gradient-text">
+                  <AnimatedCounter end={7} />
                 </div>
-                <div className="text-sm text-white/50 mt-1">Platforms</div>
+                <div className="text-sm text-white/50 mt-1">Package Sources</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-[var(--accent-1)]">1</div>
@@ -395,7 +454,7 @@ export default function Home() {
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold mb-4">See It In Action</h2>
               <p className="text-white/60 max-w-xl mx-auto">
-                Watch as kitup detects and updates all your AI coding assistants in seconds.
+                Watch kitup resolve active binaries, match the right update source, and preview changes safely.
               </p>
             </div>
           </ScrollReveal>
@@ -417,7 +476,7 @@ export default function Home() {
                 Supported <span className="gradient-text">AI Tools</span>
               </h2>
               <p className="text-white/60 max-w-xl mx-auto">
-                kitup supports all major AI coding assistants with automatic version detection.
+                kitup supports major AI coding assistants across package managers and direct installers.
               </p>
             </div>
           </ScrollReveal>
@@ -455,6 +514,37 @@ export default function Home() {
 
       <div className="section-divider max-w-4xl mx-auto" />
 
+      <section className="py-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          <ScrollReveal>
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                Built For <span className="gradient-text">Real Environments</span>
+              </h2>
+              <p className="text-white/60 max-w-2xl mx-auto">
+                Mixed installs happen. PATH drift happens. kitup is designed to update the tool you are actually invoking.
+              </p>
+            </div>
+          </ScrollReveal>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {capabilityCards.map((card, index) => (
+              <ScrollReveal key={card.title} delay={index * 100}>
+                <div className="glass-card rounded-2xl p-7 h-full">
+                  <div className="text-sm uppercase tracking-[0.24em] text-[var(--accent-1)]/70 mb-3">
+                    {String(index + 1).padStart(2, "0")}
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3">{card.title}</h3>
+                  <p className="text-white/55 leading-relaxed">{card.body}</p>
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="section-divider max-w-4xl mx-auto" />
+
       {/* Features Section */}
       <section id="features" className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
@@ -464,7 +554,7 @@ export default function Home() {
                 Why <span className="gradient-text-alt">kitup</span>?
               </h2>
               <p className="text-white/60 max-w-xl mx-auto">
-                Built for developers who want to stay current without the hassle.
+                Built for developers who want correct updates, not just convenient ones.
               </p>
             </div>
           </ScrollReveal>
@@ -507,18 +597,28 @@ export default function Home() {
             <div className="glass-card rounded-2xl p-8">
               <div className="flex items-center gap-3 mb-6">
                 <Cpu className="w-5 h-5 text-[var(--accent-1)]" />
-                <span className="font-medium">Choose Your Platform</span>
+                <span className="font-medium">Recommended For Your Device</span>
               </div>
 
-              <div className="space-y-6">
-                {installCommands.map((item) => (
-                  <CopyCommandBlock key={item.platform} platform={item.platform} command={item.command} />
-                ))}
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--accent-1)]/10 border border-[var(--accent-1)]/20 text-xs text-[var(--accent-1)] uppercase tracking-[0.18em]">
+                  Detected {recommendedInstall.platform}
+                </div>
+                <CopyCommandBlock platform={recommendedInstall.platform} command={recommendedInstall.command} />
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-white/10">
+                <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
+                  <p className="text-sm text-white/45">
+                    Install bootstrap is platform-specific, but the installed command is always `kitup`.
+                  </p>
+                </div>
+                <CopyCommandBlock platform={`Other option: ${alternateInstall.platform}`} command={alternateInstall.command} />
               </div>
 
               <div className="mt-8 pt-6 border-t border-white/10">
                 <p className="text-sm text-white/40">
-                  Or install manually: Download the latest release from{" "}
+                  Installers fetch the versioned `packages/cli` entrypoint and dispatch to the matching platform script automatically. Source and releases live on{" "}
                   <a
                     href="https://github.com/volcanicll/kitup/releases"
                     target="_blank"
@@ -545,8 +645,7 @@ export default function Home() {
                   Ready to Update?
                 </h2>
                 <p className="text-white/60 max-w-lg mx-auto mb-8">
-                  Join developers who trust kitup to keep their AI tools current.
-                  Open source and free forever.
+                  Use one command, keep the active binary current, and stop guessing which package manager owns each tool.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <a

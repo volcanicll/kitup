@@ -1,13 +1,13 @@
 #
 # kitup
 # A unified updater for AI coding assistants (Windows PowerShell version)
-# Supports: Claude Code, OpenCode, Codex, Gemini CLI, Goose, Aider
+# Supports: Claude Code, OpenCode, Codex, Gemini CLI, Kimi CLI, Cline CLI, Qwen Code, Goose, Aider
 #
 
 $ErrorActionPreference = "Stop"
 
 # Version
-$script:VERSION = "0.0.1"
+$script:VERSION = "0.0.11"
 
 # Configuration
 $script:DRY_RUN = $false
@@ -20,9 +20,12 @@ $script:VERBOSE = $false
 # Format: Name, Command, NpmPackage, BrewFormula, PipxPackage, UvPackage, GitHubRepo, InstallUrl, ChocoPackage, ScoopPackage
 $script:TOOLS = @(
     @("claude", "claude", "@anthropic-ai/claude-code", $null, $null, $null, "anthropics/claude-code", "https://claude.ai/install.sh", $null, $null),
-    @("opencode", "opencode", "opencode-ai", $null, $null, $null, "opencode-ai/opencode", "https://opencode.ai/install", $null, $null),
-    @("codex", "codex", "@openai/codex", $null, $null, $null, "openai/codex", "https://cli.openai.com/install.sh", $null, $null),
-    @("gemini", "gemini", "@google/gemini-cli", $null, $null, $null, "google-gemini/gemini-cli", $null, $null, $null),
+    @("opencode", "opencode", "opencode-ai", $null, $null, $null, "opencode-ai/opencode", "https://opencode.ai/install", "opencode", "opencode"),
+    @("codex", "codex", "@openai/codex", $null, $null, $null, "openai/codex", "https://cli.openai.com/install.sh", "codex", $null),
+    @("gemini", "gemini", "@google/gemini-cli", $null, $null, $null, "google-gemini/gemini-cli", $null, "gemini-cli", $null),
+    @("kimi", "kimi", $null, $null, "kimi-cli", "kimi-cli", "MoonshotAI/kimi-cli", $null, $null, $null),
+    @("cline", "cline", "cline", $null, $null, $null, "cline/cline", $null, $null, $null),
+    @("qwen", "qwen", "@qwen-code/qwen-code", $null, $null, $null, "QwenLM/qwen-code", "https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen.sh", $null, $null),
     @("goose", "goose", $null, "block-goose-cli", $null, $null, "block/goose", "https://github.com/block/goose/releases/download/stable/download_cli.sh", $null, $null),
     @("aider", "aider", $null, "aider", "aider-chat", "aider-chat", "Aider-AI/aider", "https://aider.chat/install.sh", $null, $null)
 )
@@ -38,6 +41,122 @@ function Write-Header { param($Message) Write-Host $Message -ForegroundColor Mag
 function Test-CommandExists {
     param($Command)
     return [bool](Get-Command $Command -ErrorAction SilentlyContinue)
+}
+
+function Get-CommandSource {
+    param($Command)
+    $resolved = Get-Command $Command -ErrorAction SilentlyContinue
+    if ($resolved) { return $resolved.Source }
+    return $null
+}
+
+function Get-NpmGlobalPrefix {
+    if (!(Test-CommandExists npm)) { return $null }
+    try {
+        return (npm prefix -g 2>$null | Select-Object -First 1)
+    } catch {
+        return $null
+    }
+}
+
+function Get-ChocoBinPath {
+    if ($env:ChocolateyInstall) {
+        return (Join-Path $env:ChocolateyInstall "bin")
+    }
+    return $null
+}
+
+function Get-ScoopShimsPath {
+    $userProfile = if ($env:USERPROFILE) { $env:USERPROFILE } else { [Environment]::GetFolderPath("UserProfile") }
+    $scoopPath = Join-Path $userProfile "scoop\shims"
+    if (Test-Path $scoopPath) { return $scoopPath }
+    return $null
+}
+
+function Test-StandalonePath {
+    param($ToolPath)
+    if (!$ToolPath) { return $false }
+    return $ToolPath -match '\\\.local\\bin\\' -or $ToolPath -match '\\AppData\\Local\\bin\\' -or $ToolPath -match '\\Program Files\\'
+}
+
+function Invoke-ToolCapture {
+    param(
+        [string]$FilePath,
+        [string[]]$Arguments
+    )
+    try {
+        $output = & $FilePath @Arguments 2>$null
+        return @($output)
+    } catch {
+        return @()
+    }
+}
+
+function Get-PreferredPackageName {
+    param([string[]]$Candidates)
+    foreach ($candidate in $Candidates) {
+        if ($candidate) { return $candidate }
+    }
+    return $null
+}
+
+function Test-ChocoPackageInstalled {
+    param($Package)
+    if (!$Package -or !(Test-CommandExists choco)) { return $false }
+    $output = Invoke-ToolCapture -FilePath "choco" -Arguments @("list", "--local-only", "--exact", $Package, "--limit-output")
+    return ($output | Select-String -Pattern "^$([regex]::Escape($Package))\|" -Quiet)
+}
+
+function Test-ScoopPackageInstalled {
+    param($Package)
+    if (!$Package -or !(Test-CommandExists scoop)) { return $false }
+    $output = Invoke-ToolCapture -FilePath "scoop" -Arguments @("list", $Package)
+    return ($output | Select-String -Pattern "^\s*$([regex]::Escape($Package))\s" -Quiet)
+}
+
+function Get-ChocoInstalledVersion {
+    param($Package)
+    if (!(Test-ChocoPackageInstalled $Package)) { return $null }
+    $output = Invoke-ToolCapture -FilePath "choco" -Arguments @("list", "--local-only", "--exact", $Package, "--limit-output")
+    $line = $output | Select-Object -First 1
+    if ($line -match '^[^|]+\|(.+)$') { return Get-ParsedVersion $Matches[1] }
+    return $null
+}
+
+function Get-ChocoLatestVersion {
+    param($Package)
+    if (!$Package -or !(Test-CommandExists choco)) { return $null }
+    try {
+        $output = Invoke-ToolCapture -FilePath "choco" -Arguments @("search", $Package, "--exact", "--limit-output")
+        $line = $output | Select-Object -First 1
+        if ($line -match '^[^|]+\|(.+)$') { return Get-ParsedVersion $Matches[1] }
+    } catch {}
+    return $null
+}
+
+function Get-ScoopInstalledVersion {
+    param($Package)
+    if (!(Test-ScoopPackageInstalled $Package)) { return $null }
+    $output = Invoke-ToolCapture -FilePath "scoop" -Arguments @("list", $Package)
+    foreach ($line in $output) {
+        if ($line -match "^\s*$([regex]::Escape($Package))\s+([^\s]+)") {
+            return Get-ParsedVersion $Matches[1]
+        }
+    }
+    return $null
+}
+
+function Get-ScoopLatestVersion {
+    param($Package)
+    if (!$Package -or !(Test-CommandExists scoop)) { return $null }
+    try {
+        $output = Invoke-ToolCapture -FilePath "scoop" -Arguments @("info", $Package)
+        foreach ($line in $output) {
+            if ($line -match 'Updated by manifest:\s*([^\s]+)') { return Get-ParsedVersion $Matches[1] }
+            if ($line -match 'Version:\s*([^\s]+)') { return Get-ParsedVersion $Matches[1] }
+        }
+    } catch {}
+    return $null
 }
 
 # Parse version string
@@ -66,24 +185,54 @@ function Get-LocalVersion {
 
 # Detect installation method
 function Get-InstallMethod {
-    param($Command, $NpmPkg, $BrewFormula, $PipxPkg, $UvPkg)
+    param($Command, $NpmPkg, $BrewFormula, $PipxPkg, $UvPkg, $ChocoPkg, $ScoopPkg)
 
-    $toolPath = (Get-Command $Command -ErrorAction SilentlyContinue).Source
+    $toolPath = Get-CommandSource $Command
     if (!$toolPath) {
         return $null
     }
 
+    $npmPrefix = Get-NpmGlobalPrefix
+    $chocoBin = Get-ChocoBinPath
+    $scoopShims = Get-ScoopShimsPath
+
+    if ($NpmPkg -and $npmPrefix -and $toolPath.StartsWith((Join-Path $npmPrefix "bin"), [System.StringComparison]::OrdinalIgnoreCase)) {
+        if ((Invoke-ToolCapture -FilePath "npm" -Arguments @("list", "-g", $NpmPkg, "--depth", "0")) -match [regex]::Escape($NpmPkg)) {
+            return "npm"
+        }
+    }
+
+    if ($ChocoPkg -and $chocoBin -and $toolPath.StartsWith($chocoBin, [System.StringComparison]::OrdinalIgnoreCase)) {
+        if (Test-ChocoPackageInstalled $ChocoPkg) {
+            return "choco"
+        }
+    }
+
+    if ($ScoopPkg -and $scoopShims -and $toolPath.StartsWith($scoopShims, [System.StringComparison]::OrdinalIgnoreCase)) {
+        if (Test-ScoopPackageInstalled $ScoopPkg) {
+            return "scoop"
+        }
+    }
+
     # Check npm
     if ($NpmPkg -and (Test-CommandExists npm)) {
-        $npmList = npm list -g $NpmPkg 2>$null
+        $npmList = Invoke-ToolCapture -FilePath "npm" -Arguments @("list", "-g", $NpmPkg, "--depth", "0")
         if ($npmList -match $NpmPkg) {
             return "npm"
         }
     }
 
+    if ($ChocoPkg -and (Test-ChocoPackageInstalled $ChocoPkg)) {
+        return "choco"
+    }
+
+    if ($ScoopPkg -and (Test-ScoopPackageInstalled $ScoopPkg)) {
+        return "scoop"
+    }
+
     # Check pipx
     if ($PipxPkg -and (Test-CommandExists pipx)) {
-        $pipxList = pipx list 2>$null
+        $pipxList = Invoke-ToolCapture -FilePath "pipx" -Arguments @("list")
         if ($pipxList -match $PipxPkg) {
             return "pipx"
         }
@@ -91,7 +240,7 @@ function Get-InstallMethod {
 
     # Check uv
     if ($UvPkg -and (Test-CommandExists uv)) {
-        $uvList = uv tool list 2>$null
+        $uvList = Invoke-ToolCapture -FilePath "uv" -Arguments @("tool", "list")
         if ($uvList -match $UvPkg) {
             return "uv"
         }
@@ -103,7 +252,7 @@ function Get-InstallMethod {
     }
 
     # Check standalone
-    if ($toolPath -match "\.local|AppData|Program Files") {
+    if (Test-StandalonePath $toolPath) {
         return "standalone"
     }
 
@@ -115,7 +264,7 @@ function Get-NpmLatestVersion {
     param($Package)
     if (!(Test-CommandExists npm)) { return $null }
     try {
-        return npm view $Package version 2>$null
+        return Get-ParsedVersion (npm view $Package version 2>$null)
     } catch {
         return $null
     }
@@ -126,7 +275,7 @@ function Get-GitHubLatestVersion {
     param($Repo)
     try {
         $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -ErrorAction SilentlyContinue
-        return $response.tag_name -replace '^v', ''
+        return Get-ParsedVersion $response.tag_name
     } catch {
         return $null
     }
@@ -137,7 +286,7 @@ function Get-PyPiLatestVersion {
     param($Package)
     try {
         $response = Invoke-RestMethod -Uri "https://pypi.org/pypi/$Package/json" -ErrorAction SilentlyContinue
-        return $response.info.version
+        return Get-ParsedVersion $response.info.version
     } catch {
         return $null
     }
@@ -145,14 +294,44 @@ function Get-PyPiLatestVersion {
 
 # Get latest version for a tool
 function Get-LatestVersion {
-    param($Method, $NpmPkg, $BrewFormula, $PipxPkg, $UvPkg, $GitHubRepo)
+    param($Method, $NpmPkg, $BrewFormula, $PipxPkg, $UvPkg, $GitHubRepo, $ChocoPkg, $ScoopPkg)
 
     switch ($Method) {
         "npm" { return Get-NpmLatestVersion $NpmPkg }
+        "choco" { return Get-ChocoLatestVersion $ChocoPkg }
+        "scoop" { return Get-ScoopLatestVersion $ScoopPkg }
         "pipx" { return Get-PyPiLatestVersion $PipxPkg }
         "uv" { return Get-PyPiLatestVersion $UvPkg }
-        "pip" { return Get-PyPiLatestVersion ($PipxPkg -or $UvPkg) }
+        "pip" {
+            $packageName = Get-PreferredPackageName @($PipxPkg, $UvPkg)
+            if ($packageName) { return Get-PyPiLatestVersion $packageName }
+            return $null
+        }
+        "standalone" {
+            if ($GitHubRepo) { return Get-GitHubLatestVersion $GitHubRepo }
+            return $null
+        }
         default {
+            if ($NpmPkg) {
+                $npmLatest = Get-NpmLatestVersion $NpmPkg
+                if ($npmLatest) { return $npmLatest }
+            }
+            if ($ChocoPkg) {
+                $chocoLatest = Get-ChocoLatestVersion $ChocoPkg
+                if ($chocoLatest) { return $chocoLatest }
+            }
+            if ($ScoopPkg) {
+                $scoopLatest = Get-ScoopLatestVersion $ScoopPkg
+                if ($scoopLatest) { return $scoopLatest }
+            }
+            if ($PipxPkg) {
+                $pipxLatest = Get-PyPiLatestVersion $PipxPkg
+                if ($pipxLatest) { return $pipxLatest }
+            }
+            if ($UvPkg) {
+                $uvLatest = Get-PyPiLatestVersion $UvPkg
+                if ($uvLatest) { return $uvLatest }
+            }
             if ($GitHubRepo) {
                 return Get-GitHubLatestVersion $GitHubRepo
             }
@@ -163,7 +342,7 @@ function Get-LatestVersion {
 
 # Update a tool
 function Update-Tool {
-    param($Name, $Method, $NpmPkg, $BrewFormula, $PipxPkg, $UvPkg, $InstallUrl)
+    param($Name, $Method, $NpmPkg, $BrewFormula, $PipxPkg, $UvPkg, $InstallUrl, $ChocoPkg, $ScoopPkg)
 
     if ($script:DRY_RUN) {
         Write-Info "[DRY RUN] Would update $Name using $Method"
@@ -175,6 +354,20 @@ function Update-Tool {
             if ($NpmPkg) {
                 Write-Info "Updating $Name via npm..."
                 npm update -g $NpmPkg
+                return $?
+            }
+        }
+        "choco" {
+            if ($ChocoPkg) {
+                Write-Info "Updating $Name via Chocolatey..."
+                choco upgrade $ChocoPkg -y
+                return $?
+            }
+        }
+        "scoop" {
+            if ($ScoopPkg) {
+                Write-Info "Updating $Name via Scoop..."
+                scoop update $ScoopPkg
                 return $?
             }
         }
@@ -194,7 +387,9 @@ function Update-Tool {
         }
         "pip" {
             Write-Info "Updating $Name via pip..."
-            pip install --upgrade ($PipxPkg -or $UvPkg -or $Name)
+            $packageName = Get-PreferredPackageName @($PipxPkg, $UvPkg, $Name)
+            if (!$packageName) { return $false }
+            pip install --upgrade $packageName
             return $?
         }
         default {
@@ -219,6 +414,8 @@ function Update-Tool {
                     return $false
                 }
             }
+            Write-Warning "No update method available for $Name"
+            return $false
         }
     }
     return $false
@@ -226,7 +423,7 @@ function Update-Tool {
 
 # Install a tool
 function Install-Tool {
-    param($Name, $Command, $NpmPkg, $BrewFormula, $InstallUrl, $ChocoPkg, $ScoopPkg)
+    param($Name, $Command, $NpmPkg, $BrewFormula, $InstallUrl, $ChocoPkg, $ScoopPkg, $PipxPkg, $UvPkg)
 
     if ($script:DRY_RUN) {
         Write-Info "[DRY RUN] Would install $Name"
@@ -242,10 +439,28 @@ function Install-Tool {
         return $?
     }
 
+    if ($ChocoPkg -and (Test-CommandExists choco)) {
+        Write-Info "Installing $Name via Chocolatey..."
+        choco install $ChocoPkg -y
+        return $?
+    }
+
+    if ($ScoopPkg -and (Test-CommandExists scoop)) {
+        Write-Info "Installing $Name via Scoop..."
+        scoop install $ScoopPkg
+        return $?
+    }
+
     # Try pipx
-    if (Test-CommandExists pipx) {
+    if ($PipxPkg -and (Test-CommandExists pipx)) {
         Write-Info "Installing $Name via pipx..."
-        pipx install ($NpmPkg -or $Name)
+        pipx install $PipxPkg
+        return $?
+    }
+
+    if ($UvPkg -and (Test-CommandExists uv)) {
+        Write-Info "Installing $Name via uv..."
+        uv tool install $UvPkg
         return $?
     }
 
@@ -315,6 +530,8 @@ function Show-Status {
         $pipxPkg = $tool[4]
         $uvPkg = $tool[5]
         $githubRepo = $tool[6]
+        $chocoPkg = $tool[8]
+        $scoopPkg = $tool[9]
 
         $installed = "No"
         $method = "-"
@@ -323,9 +540,14 @@ function Show-Status {
 
         if (Test-CommandExists $cmd) {
             $installed = "Yes"
-            $method = Get-InstallMethod $cmd $npmPkg $brewFormula $pipxPkg $uvPkg
+            $method = Get-InstallMethod $cmd $npmPkg $brewFormula $pipxPkg $uvPkg $chocoPkg $scoopPkg
             $localVer = Get-LocalVersion $cmd
-            $latestVer = Get-LatestVersion $method $npmPkg $brewFormula $pipxPkg $uvPkg $githubRepo
+            if ($method -eq "choco" -and $chocoPkg) {
+                $localVer = Get-ChocoInstalledVersion $chocoPkg
+            } elseif ($method -eq "scoop" -and $scoopPkg) {
+                $localVer = Get-ScoopInstalledVersion $scoopPkg
+            }
+            $latestVer = Get-LatestVersion $method $npmPkg $brewFormula $pipxPkg $uvPkg $githubRepo $chocoPkg $scoopPkg
         }
 
         Write-Host "{0,-12} {1,-10} {2,-12} {3,-15} {4,-15}" -f $name, $installed, $method, $localVer, $latestVer
@@ -379,11 +601,13 @@ function Update-All {
         $pipxPkg = $tool[4]
         $uvPkg = $tool[5]
         $githubRepo = $tool[6]
+        $chocoPkg = $tool[8]
+        $scoopPkg = $tool[9]
         $installUrl = $tool[7]
 
         if (!(Test-CommandExists $cmd)) {
             if ($script:INSTALL_MISSING) {
-                if (Install-Tool $name $cmd $npmPkg $brewFormula $installUrl) {
+                if (Install-Tool $name $cmd $npmPkg $brewFormula $installUrl $chocoPkg $scoopPkg $pipxPkg $uvPkg) {
                     $updated++
                 } else {
                     $failed++
@@ -395,9 +619,14 @@ function Update-All {
             continue
         }
 
-        $method = Get-InstallMethod $cmd $npmPkg $brewFormula $pipxPkg $uvPkg
+        $method = Get-InstallMethod $cmd $npmPkg $brewFormula $pipxPkg $uvPkg $chocoPkg $scoopPkg
         $localVer = Get-LocalVersion $cmd
-        $latestVer = Get-LatestVersion $method $npmPkg $brewFormula $pipxPkg $uvPkg $githubRepo
+        if ($method -eq "choco" -and $chocoPkg) {
+            $localVer = Get-ChocoInstalledVersion $chocoPkg
+        } elseif ($method -eq "scoop" -and $scoopPkg) {
+            $localVer = Get-ScoopInstalledVersion $scoopPkg
+        }
+        $latestVer = Get-LatestVersion $method $npmPkg $brewFormula $pipxPkg $uvPkg $githubRepo $chocoPkg $scoopPkg
 
         if (!$latestVer) {
             Write-Warning "Cannot check latest version for $name"
@@ -412,7 +641,7 @@ function Update-All {
         }
 
         Write-Info "Updating $name from $localVer to $latestVer..."
-        if (Update-Tool $name $method $npmPkg $brewFormula $pipxPkg $uvPkg $installUrl) {
+        if (Update-Tool $name $method $npmPkg $brewFormula $pipxPkg $uvPkg $installUrl $chocoPkg $scoopPkg) {
             Write-Success "$name updated successfully"
             $updated++
         } else {
@@ -451,19 +680,26 @@ function Update-Specific {
                 $uvPkg = $tool[5]
                 $githubRepo = $tool[6]
                 $installUrl = $tool[7]
+                $chocoPkg = $tool[8]
+                $scoopPkg = $tool[9]
 
                 if (!(Test-CommandExists $cmd)) {
                     if ($script:INSTALL_MISSING) {
-                        Install-Tool $name $cmd $npmPkg $brewFormula $installUrl
+                        Install-Tool $name $cmd $npmPkg $brewFormula $installUrl $chocoPkg $scoopPkg $pipxPkg $uvPkg
                     } else {
                         Write-Error "$name is not installed (use --install to install)"
                     }
                     continue
                 }
 
-                $method = Get-InstallMethod $cmd $npmPkg $brewFormula $pipxPkg $uvPkg
+                $method = Get-InstallMethod $cmd $npmPkg $brewFormula $pipxPkg $uvPkg $chocoPkg $scoopPkg
                 $localVer = Get-LocalVersion $cmd
-                $latestVer = Get-LatestVersion $method $npmPkg $brewFormula $pipxPkg $uvPkg $githubRepo
+                if ($method -eq "choco" -and $chocoPkg) {
+                    $localVer = Get-ChocoInstalledVersion $chocoPkg
+                } elseif ($method -eq "scoop" -and $scoopPkg) {
+                    $localVer = Get-ScoopInstalledVersion $scoopPkg
+                }
+                $latestVer = Get-LatestVersion $method $npmPkg $brewFormula $pipxPkg $uvPkg $githubRepo $chocoPkg $scoopPkg
 
                 if (!$latestVer) {
                     Write-Warning "Cannot check latest version for $name"
@@ -476,7 +712,7 @@ function Update-Specific {
                 }
 
                 Write-Info "Updating $name from $localVer to $latestVer..."
-                if (Update-Tool $name $method $npmPkg $brewFormula $pipxPkg $uvPkg $installUrl) {
+                if (Update-Tool $name $method $npmPkg $brewFormula $pipxPkg $uvPkg $installUrl $chocoPkg $scoopPkg) {
                     Write-Success "$name updated successfully"
                 } else {
                     Write-Error "Failed to update $name"
@@ -498,7 +734,7 @@ function Show-Help {
 kitup v$VERSION
 
 A unified updater for AI coding assistants
-Supports: Claude Code, OpenCode, Codex, Gemini CLI, Goose, Aider
+Supports: Claude Code, OpenCode, Codex, Gemini CLI, Kimi CLI, Cline CLI, Qwen Code, Goose, Aider
 
 Usage:
   kitup [options] [tool1] [tool2] ...
@@ -517,11 +753,11 @@ Options:
   --verbose           Enable verbose output
 
 Examples:
-  update-ai-tools --status              Check status of all tools
-  update-ai-tools --all                 Update all installed tools
-  update-ai-tools --all --install       Update all and install missing tools
-  update-ai-tools claude codex          Update specific tools
-  update-ai-tools --all --dry-run       Preview what would be updated
+  kitup --status                        Check status of all tools
+  kitup --all                           Update all installed tools
+  kitup --all --install                 Update all and install missing tools
+  kitup claude codex                    Update specific tools
+  kitup --all --dry-run                 Preview what would be updated
 
 Environment Variables:
   GITHUB_TOKEN        GitHub API token (for higher rate limits)

@@ -2,13 +2,13 @@
 #
 # kitup - Installation Script
 # One-click installer for the AI coding tools updater
-# Usage: curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.sh | bash
 #
 
 set -e
 
 # Version - should match kitup.sh
-INSTALLER_VERSION="0.0.1"
+INSTALLER_VERSION="0.0.11"
 
 # Colors for output
 RED='\033[0;31m'
@@ -22,8 +22,8 @@ REPO_OWNER="${REPO_OWNER:-volcanicll}"
 REPO_NAME="${REPO_NAME:-kitup}"
 VERSION="${VERSION:-main}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
-SCRIPT_NAME="kitup.sh"
-WRAPPER_NAME="kitup"
+ENTRY_NAME="kitup"
+SHELL_SCRIPT_NAME="kitup.sh"
 
 # Print functions
 print_info() {
@@ -133,29 +133,6 @@ download_file() {
     fi
 }
 
-# Create wrapper script
-create_wrapper() {
-    local script_path="$1"
-    local wrapper_path="$2"
-
-    cat > "$wrapper_path" << 'EOF'
-#!/bin/bash
-# Wrapper script for kitup
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPT_NAME="kitup.sh"
-
-if [ -f "$SCRIPT_DIR/$SCRIPT_NAME" ]; then
-    exec bash "$SCRIPT_DIR/$SCRIPT_NAME" "$@"
-else
-    echo "Error: Cannot find $SCRIPT_NAME"
-    exit 1
-fi
-EOF
-
-    chmod +x "$wrapper_path"
-}
-
 # Main installation function
 install() {
     print_info "AI Tools Updater Installer"
@@ -186,26 +163,27 @@ install() {
         exit 1
     fi
 
-    # Download the main script
-    local script_url="https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/$VERSION/packages/cli/$SCRIPT_NAME"
-    local script_path="$INSTALL_DIR/$SCRIPT_NAME"
-    local wrapper_path="$INSTALL_DIR/$WRAPPER_NAME"
+    # Download the entrypoint and Unix implementation
+    local entry_url="https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/$VERSION/packages/cli/$ENTRY_NAME"
+    local script_url="https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/$VERSION/packages/cli/$SHELL_SCRIPT_NAME"
+    local entry_path="$INSTALL_DIR/$ENTRY_NAME"
+    local script_path="$INSTALL_DIR/$SHELL_SCRIPT_NAME"
 
     print_info "Downloading kitup..."
-    print_info "URL: $script_url"
+    print_info "URLs:"
+    print_info "  $entry_url"
+    print_info "  $script_url"
 
-    if ! download_file "$script_url" "$script_path"; then
-        print_error "Failed to download script"
+    if ! download_file "$entry_url" "$entry_path" || ! download_file "$script_url" "$script_path"; then
+        print_error "Failed to download kitup files"
         print_info "Please check your internet connection and try again"
         exit 1
     fi
 
+    chmod +x "$entry_path"
     chmod +x "$script_path"
-    print_success "Downloaded $SCRIPT_NAME to $script_path"
-
-    # Create wrapper script
-    create_wrapper "$script_path" "$wrapper_path"
-    print_success "Created wrapper script: $wrapper_path"
+    print_success "Downloaded $ENTRY_NAME to $entry_path"
+    print_success "Downloaded $SHELL_SCRIPT_NAME to $script_path"
 
     # Add to PATH if needed
     if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
@@ -228,12 +206,12 @@ install() {
 uninstall() {
     print_info "Uninstalling kitup..."
 
-    local script_path="$INSTALL_DIR/$SCRIPT_NAME"
-    local wrapper_path="$INSTALL_DIR/$WRAPPER_NAME"
+    local entry_path="$INSTALL_DIR/$ENTRY_NAME"
+    local script_path="$INSTALL_DIR/$SHELL_SCRIPT_NAME"
 
-    if [ -f "$wrapper_path" ]; then
-        rm -f "$wrapper_path"
-        print_success "Removed $wrapper_path"
+    if [ -f "$entry_path" ]; then
+        rm -f "$entry_path"
+        print_success "Removed $entry_path"
     fi
 
     if [ -f "$script_path" ]; then
@@ -249,7 +227,7 @@ show_help() {
     echo "kitup - Installer"
     echo ""
     echo "Usage:"
-    echo "  curl -fsSL https://.../install.sh | bash              # Install"
+    echo "  curl -fsSL https://.../install.sh | bash                   # Install"
     echo "  curl -fsSL https://.../install.sh | bash -s -- --uninstall  # Uninstall"
     echo ""
     echo "Environment variables:"

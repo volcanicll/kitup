@@ -14,12 +14,12 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "kitup - AI Coding Assistant Updater",
-  description: "Update all your AI coding assistants with a single command. Claude Code, OpenCode, Codex, Gemini CLI, Goose, and Aider.",
-  keywords: ["AI", "CLI", "developer tools", "Claude Code", "OpenCode", "Codex", "Gemini CLI", "Goose", "Aider"],
+  description: "Update AI coding assistants with one command while preserving the active package manager on your PATH across macOS, Linux, and Windows.",
+  keywords: ["AI", "CLI", "developer tools", "Claude Code", "OpenCode", "Codex", "Gemini CLI", "Goose", "Aider", "Chocolatey", "Scoop"],
   authors: [{ name: "volcanicll" }],
   openGraph: {
     title: "kitup - AI Coding Assistant Updater",
-    description: "Update all your AI coding assistants with a single command",
+    description: "A path-aware updater for AI coding assistants across macOS, Linux, and Windows.",
     type: "website",
   },
 };

@@ -1,0 +1,37 @@
+#!/bin/bash
+#
+# kitup
+# Unified entrypoint that dispatches to the platform-specific implementation.
+#
+
+set -e
+
+command_exists() {
+    command -v "$1" > /dev/null 2>&1
+}
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+case "$(uname -s 2>/dev/null || echo unknown)" in
+    CYGWIN*|MINGW*|MSYS*)
+        if [ -f "$SCRIPT_DIR/kitup.ps1" ]; then
+            if command_exists pwsh; then
+                exec pwsh -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT_DIR/kitup.ps1" "$@"
+            elif command_exists powershell.exe; then
+                exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT_DIR/kitup.ps1" "$@"
+            else
+                echo "Error: Cannot find pwsh or powershell.exe to run kitup.ps1"
+                exit 1
+            fi
+        fi
+        echo "Error: Cannot find kitup.ps1"
+        exit 1
+        ;;
+    *)
+        if [ -f "$SCRIPT_DIR/kitup.sh" ]; then
+            exec bash "$SCRIPT_DIR/kitup.sh" "$@"
+        fi
+        echo "Error: Cannot find kitup.sh"
+        exit 1
+        ;;
+esac

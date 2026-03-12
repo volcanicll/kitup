@@ -1,13 +1,13 @@
 #
 # kitup - Windows Installation Script
 # One-click installer for the AI coding tools updater
-# Usage: irm https://raw.githubusercontent.com/volcanicll/kitup/main/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.ps1 | iex
 #
 
 $ErrorActionPreference = "Stop"
 
 # Version - should match kitup.ps1
-$script:INSTALLER_VERSION = "0.0.1"
+$script:INSTALLER_VERSION = "0.0.11"
 
 # Configuration
 $RepoOwner = $env:REPO_OWNER -or "volcanicll"
@@ -61,18 +61,6 @@ function Add-ToPath {
     }
 }
 
-# Create wrapper script
-function Create-Wrapper {
-    param($ScriptPath, $WrapperPath)
-
-    $wrapperContent = @"
-@echo off
-powershell -ExecutionPolicy Bypass -File "$ScriptPath" %*
-"@
-
-    Set-Content -Path $WrapperPath -Value $wrapperContent -Encoding ASCII
-}
-
 # Main installation function
 function Install-Updater {
     Write-Info "AI Tools Updater Installer"
@@ -89,25 +77,25 @@ function Install-Updater {
         New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     }
 
-    # Download the main script
+    # Download the entrypoint and PowerShell implementation
+    $entryUrl = "https://raw.githubusercontent.com/$RepoOwner/$RepoName/$Version/packages/cli/kitup.bat"
     $scriptUrl = "https://raw.githubusercontent.com/$RepoOwner/$RepoName/$Version/packages/cli/kitup.ps1"
+    $entryPath = Join-Path $InstallDir "kitup.bat"
     $scriptPath = Join-Path $InstallDir "kitup.ps1"
-    $wrapperPath = Join-Path $InstallDir "kitup.bat"
 
     Write-Info "Downloading kitup..."
-    Write-Info "URL: $scriptUrl"
+    Write-Info "URLs:"
+    Write-Info "  $entryUrl"
+    Write-Info "  $scriptUrl"
 
-    if (!(Download-File -Url $scriptUrl -OutputPath $scriptPath)) {
-        Write-Error "Failed to download script"
+    if (!(Download-File -Url $entryUrl -OutputPath $entryPath) -or !(Download-File -Url $scriptUrl -OutputPath $scriptPath)) {
+        Write-Error "Failed to download kitup files"
         Write-Info "Please check your internet connection and try again"
         exit 1
     }
 
+    Write-Success "Downloaded kitup.bat to $entryPath"
     Write-Success "Downloaded kitup.ps1 to $scriptPath"
-
-    # Create wrapper script
-    Create-Wrapper -ScriptPath $scriptPath -WrapperPath $wrapperPath
-    Write-Success "Created wrapper script: $wrapperPath"
 
     # Add to PATH
     Add-ToPath -Directory $InstallDir
@@ -128,11 +116,11 @@ function Uninstall-Updater {
     Write-Info "Uninstalling kitup..."
 
     $scriptPath = Join-Path $InstallDir "kitup.ps1"
-    $wrapperPath = Join-Path $InstallDir "kitup.bat"
+    $entryPath = Join-Path $InstallDir "kitup.bat"
 
-    if (Test-Path $wrapperPath) {
-        Remove-Item $wrapperPath -Force
-        Write-Success "Removed $wrapperPath"
+    if (Test-Path $entryPath) {
+        Remove-Item $entryPath -Force
+        Write-Success "Removed $entryPath"
     }
 
     if (Test-Path $scriptPath) {

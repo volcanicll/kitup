@@ -6,27 +6,46 @@ A unified, cross-platform updater for AI coding assistants. Keep all your AI pro
 
 ## Supported AI Tools
 
-| Tool | npm | Homebrew | pipx/uv | Standalone |
-|------|-----|----------|---------|------------|
-| [Claude Code](https://claude.ai/code) | ✅ | ✅ | ❌ | ✅ |
-| [OpenCode](https://opencode.ai) | ✅ | ✅ | ❌ | ✅ |
-| [Codex (OpenAI)](https://github.com/openai/codex) | ✅ | ✅ | ❌ | ✅ |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✅ | ✅ | ❌ | ❌ |
-| [Goose (Block)](https://github.com/block/goose) | ❌ | ✅ | ❌ | ✅ |
-| [Aider](https://github.com/Aider-AI/aider) | ❌ | ✅ | ✅ | ✅ |
+| Tool | npm | Homebrew | pipx/uv | Chocolatey / Scoop | Standalone |
+|------|-----|----------|---------|---------------------|------------|
+| [Claude Code](https://claude.ai/code) | ✅ | ✅ | ❌ | ❌ | ✅ |
+| [OpenCode](https://opencode.ai) | ✅ | ✅ | ❌ | ✅ | ✅ |
+| [Codex (OpenAI)](https://github.com/openai/codex) | ✅ | ✅ | ❌ | ✅ | ✅ |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✅ | ✅ | ❌ | ✅ | ❌ |
+| [Kimi CLI](https://github.com/MoonshotAI/kimi-cli) | ❌ | ❌ | ✅ | ❌ | ❌ |
+| [Cline CLI](https://docs.cline.bot/cline-cli/installation) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| [Qwen Code](https://github.com/QwenLM/qwen-code) | ✅ | ✅ | ❌ | ❌ | ✅ |
+| [Goose (Block)](https://github.com/block/goose) | ❌ | ✅ | ❌ | ❌ | ✅ |
+| [Aider](https://github.com/Aider-AI/aider) | ❌ | ✅ | ✅ | ❌ | ✅ |
+
+## Entrypoint Design
+
+Installers now place a single `kitup` entry command in your PATH:
+
+- macOS / Linux: `kitup` dispatches to `kitup.sh`
+- Windows: `kitup.bat` dispatches to `kitup.ps1`
+
+This keeps the platform-specific logic separate while giving users one stable command surface.
+
+The bootstrap installer is still platform-specific:
+
+- Unix-like systems start from `install.sh`
+- Windows starts from `install.ps1`
+
+After installation, the command users run is unified as `kitup`.
 
 ## Installation
 
 ### macOS / Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.sh | bash
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/volcanicll/kitup/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.ps1 | iex
 ```
 
 ## Usage
@@ -121,9 +140,9 @@ Options:
 ## How It Works
 
 1. **Detection**: The updater detects which AI tools are installed on your system
-2. **Method Identification**: It identifies how each tool was installed (npm, Homebrew, pipx, uv, or standalone)
-3. **Version Check**: Compares your local version with the latest available version
-4. **Smart Update**: Uses the same installation method to update each tool
+2. **Method Identification**: It identifies how the currently active binary on your `PATH` was installed
+3. **Version Check**: It compares your local version with the latest version from the matching source first
+4. **Smart Update**: It updates using the same installation method, instead of switching package managers underneath you
 
 ### Installation Method Detection
 
@@ -131,9 +150,13 @@ The updater automatically detects how each tool was installed:
 
 - **npm**: Checks `npm list -g <package>`
 - **Homebrew**: Checks `brew list <formula>`
+- **Chocolatey**: Checks `choco list --local-only --exact <package>`
+- **Scoop**: Checks `scoop list <package>`
 - **pipx**: Checks `pipx list`
 - **uv**: Checks `uv tool list`
 - **Standalone**: Detected by installation path or as fallback
+
+When duplicate installs exist, `kitup` prefers the command currently resolved by your shell `PATH`.
 
 ## Requirements
 
@@ -143,7 +166,7 @@ The updater automatically detects how each tool was installed:
 
 ### Optional Dependencies
 
-- `jq` - For better JSON parsing (Homebrew version checks)
+- `jq` - Improves Homebrew JSON parsing, but is no longer required
 - `curl` or `wget` - For downloading updates
 
 ## Uninstallation
@@ -151,7 +174,7 @@ The updater automatically detects how each tool was installed:
 ### macOS / Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/install.sh | bash -s -- --uninstall
+curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.sh | bash -s -- --uninstall
 ```
 
 Or manually:
@@ -164,7 +187,7 @@ rm ~/.local/bin/kitup.sh
 ### Windows
 
 ```powershell
-irm https://raw.githubusercontent.com/volcanicll/kitup/main/install.ps1 | iex -Args @('--uninstall')
+irm https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.ps1 | iex -Args @('--uninstall')
 ```
 
 Or manually remove from `%LOCALAPPDATA%\kitup`.
@@ -198,12 +221,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **macOS / Linux:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/volcanicll/kitup/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.ps1 | iex
 ```
 
 ### 基本用法
