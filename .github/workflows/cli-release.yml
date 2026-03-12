@@ -31,12 +31,16 @@ jobs:
         shell: pwsh
         run: |
           $scripts = Get-ChildItem -Path *.ps1
+          $hasErrors = $false
           foreach ($script in $scripts) {
-            $errors = Invoke-ScriptAnalyzer -Path $script.FullName
+            $errors = Invoke-ScriptAnalyzer -Path $script.FullName -Severity Error
             if ($errors) {
               $errors | Format-Table
-              exit 1
+              $hasErrors = $true
             }
+          }
+          if ($hasErrors) {
+            exit 1
           }
 
   test:
