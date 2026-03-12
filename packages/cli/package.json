@@ -1,0 +1,22 @@
+{
+  "name": "@kitup/cli",
+  "version": "0.0.1",
+  "description": "A unified, cross-platform updater for AI coding assistants",
+  "scripts": {
+    "test": "bash -n install.sh && bash -n kitup.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/volcanicll/kitup.git",
+    "directory": "packages/cli"
+  },
+  "license": "MIT",
+  "files": [
+    "install.sh",
+    "kitup.sh",
+    "install.ps1",
+    "kitup.ps1",
+    "README.md",
+    "LICENSE"
+  ]
+}

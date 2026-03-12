@@ -1,4 +1,4 @@
-name: Release
+name: CLI Release
 
 on:
   push:
@@ -6,11 +6,16 @@ on:
       - 'v*'
   pull_request:
     branches: [ main ]
+    paths:
+      - 'packages/cli/**'
 
 jobs:
   lint:
     name: Lint Scripts
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/cli
     steps:
       - uses: actions/checkout@v4
 
@@ -37,6 +42,9 @@ jobs:
   test:
     name: Test Scripts
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: packages/cli
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -46,9 +54,9 @@ jobs:
       - name: Test install script (Unix)
         if: runner.os != 'Windows'
         run: |
-          chmod +x install.sh kit-update.sh
+          chmod +x install.sh kitup.sh
           bash -n install.sh
-          bash -n kit-update.sh
+          bash -n kitup.sh
 
       - name: Test install script (Windows)
         if: runner.os == 'Windows'
@@ -77,6 +85,9 @@ jobs:
     needs: [lint, test]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    defaults:
+      run:
+        working-directory: packages/cli
     permissions:
       contents: write
     steps:
@@ -93,11 +104,11 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            install.sh
-            kitup.sh
-            install.ps1
-            kitup.ps1
-            checksums.txt
+            packages/cli/install.sh
+            packages/cli/kitup.sh
+            packages/cli/install.ps1
+            packages/cli/kitup.ps1
+            packages/cli/checksums.txt
           body: |
             ## kitup ${{ github.ref_name }}
 
@@ -105,12 +116,12 @@ jobs:
 
             **macOS / Linux:**
             ```bash
-            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/install.sh | bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/packages/cli/install.sh | bash
             ```
 
             **Windows:**
             ```powershell
-            irm https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/install.ps1 | iex
+            irm https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/packages/cli/install.ps1 | iex
             ```
 
             ### Checksums

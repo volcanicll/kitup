@@ -1,10 +1,34 @@
-# kitup
+# Kitup
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub release](https://img.shields.io/github/release/volcanicll/kitup.svg)](https://github.com/volcanicll/kitup/releases)
 
 A unified, cross-platform updater for AI coding assistants. Keep all your AI programming tools up to date with a single command.
 
-## Supported AI Tools
+## 🚀 Quick Start
+
+### macOS / Linux
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.sh | bash
+```
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.ps1 | iex
+```
+
+## 📦 Monorepo Structure
+
+This is a monorepo containing the following packages:
+
+| Package | Description | Path |
+|---------|-------------|------|
+| `@kitup/cli` | CLI tool for updating AI coding assistants | [`packages/cli`](./packages/cli) |
+| `@kitup/website` | Official website and documentation | [`packages/website`](./packages/website) |
+
+## 🛠️ Supported AI Tools
 
 | Tool | npm | Homebrew | pipx/uv | Standalone |
 |------|-----|----------|---------|------------|
@@ -15,221 +39,20 @@ A unified, cross-platform updater for AI coding assistants. Keep all your AI pro
 | [Goose (Block)](https://github.com/block/goose) | ❌ | ✅ | ❌ | ✅ |
 | [Aider](https://github.com/Aider-AI/aider) | ❌ | ✅ | ✅ | ✅ |
 
-## Installation
+## 📖 Documentation
 
-### macOS / Linux
+- [CLI Documentation](./packages/cli/README.md)
+- [Website](./packages/website/README.md)
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/install.sh | bash
-```
-
-### Windows (PowerShell)
-
-```powershell
-irm https://raw.githubusercontent.com/volcanicll/kitup/main/install.ps1 | iex
-```
-
-## Usage
-
-### Check Status
-
-View the status of all supported AI tools:
-
-```bash
-kitup --status
-```
-
-Output example:
-```
-AI Tools Status
-
-Tool         Installed  Method       Local Version   Latest Version
-----         ---------  ------       -------------   --------------
-claude       Yes        npm          0.2.45          0.2.46
-opencode     Yes        brew         1.2.3           1.2.4
-codex        No         -            -               -
-gemini       Yes        npm          0.32.1          0.32.1
-goose        No         -            -               -
-aider        Yes        pipx         0.75.2          0.76.0
-```
-
-### Update All Installed Tools
-
-```bash
-kitup --all
-```
-
-### Update Specific Tools
-
-```bash
-kitup claude codex aider
-```
-
-### Install Missing Tools
-
-Update all installed tools and install missing ones:
-
-```bash
-kitup --all --install
-```
-
-Or install specific tools:
-
-```bash
-kitup claude --install
-```
-
-### Preview Changes (Dry Run)
-
-See what would be updated without making changes:
-
-```bash
-kitup --all --dry-run
-```
-
-### Backup Configuration
-
-Backup your AI tool configurations before updating:
-
-```bash
-kitup --all --backup
-```
-
-Restore from the last backup:
-
-```bash
-kitup --restore
-```
-
-## Command Line Options
-
-```
-Options:
-  -h, --help          Show help message
-  -v, --version       Show version information
-  -l, --list          List all supported AI tools
-  -s, --status        Show status of all tools
-  -a, --all           Update all installed tools
-  -i, --install       Install missing tools
-  -n, --dry-run       Show what would be done without making changes
-  -f, --force         Force update even if already at latest version
-  -b, --backup        Backup configuration before updating
-      --restore       Restore configuration from last backup
-  --verbose           Enable verbose output
-```
-
-## How It Works
-
-1. **Detection**: The updater detects which AI tools are installed on your system
-2. **Method Identification**: It identifies how each tool was installed (npm, Homebrew, pipx, uv, or standalone)
-3. **Version Check**: Compares your local version with the latest available version
-4. **Smart Update**: Uses the same installation method to update each tool
-
-### Installation Method Detection
-
-The updater automatically detects how each tool was installed:
-
-- **npm**: Checks `npm list -g <package>`
-- **Homebrew**: Checks `brew list <formula>`
-- **pipx**: Checks `pipx list`
-- **uv**: Checks `uv tool list`
-- **Standalone**: Detected by installation path or as fallback
-
-## Requirements
-
-- **macOS**: macOS 10.15+ with bash/zsh
-- **Linux**: Any modern distribution with bash
-- **Windows**: Windows 10+ with PowerShell 5.1+ or PowerShell Core
-
-### Optional Dependencies
-
-- `jq` - For better JSON parsing (Homebrew version checks)
-- `curl` or `wget` - For downloading updates
-
-## Uninstallation
-
-### macOS / Linux
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/install.sh | bash -s -- --uninstall
-```
-
-Or manually:
-
-```bash
-rm ~/.local/bin/kitup
-rm ~/.local/bin/kitup.sh
-```
-
-### Windows
-
-```powershell
-irm https://raw.githubusercontent.com/volcanicll/kitup/main/install.ps1 | iex -Args @('--uninstall')
-```
-
-Or manually remove from `%LOCALAPPDATA%\kitup`.
-
-## GitHub API Rate Limits
-
-If you encounter GitHub API rate limits, set a GitHub token:
-
-```bash
-export GITHUB_TOKEN=your_token_here
-```
-
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
+## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](./packages/cli/LICENSE) file for details.
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
 - Inspired by the installation scripts of [Claude Code](https://claude.ai), [OpenCode](https://opencode.ai), and [Aider](https://aider.chat)
 - Thanks to all the AI tool developers for making amazing coding assistants
-
----
-
-## 中文说明
-
-### 安装
-
-**macOS / Linux:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/install.sh | bash
-```
-
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/volcanicll/kitup/main/install.ps1 | iex
-```
-
-### 基本用法
-
-```bash
-# 查看所有AI工具状态
-kitup --status
-
-# 更新所有已安装的工具
-kitup --all
-
-# 更新指定工具
-kitup claude codex
-
-# 更新所有工具并安装缺失的
-kitup --all --install
-
-# 模拟运行（不实际执行）
-kitup --all --dry-run
-```
-
-### 支持的AI编程工具
-
-- **Claude Code** - Anthropic 的AI编程助手
-- **OpenCode** - 开源AI编程工具
-- **Codex** - OpenAI 的代码生成工具
-- **Gemini CLI** - Google 的AI命令行工具
-- **Goose** - Block 的开源AI代理
-- **Aider** - 终端AI结对编程工具

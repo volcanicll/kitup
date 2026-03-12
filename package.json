@@ -1,0 +1,24 @@
+{
+  "name": "kitup-monorepo",
+  "version": "0.0.1",
+  "description": "A unified, cross-platform updater for AI coding assistants",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/volcanicll/kitup.git"
+  },
+  "license": "MIT"
+}
