@@ -8,7 +8,7 @@
 set -e
 
 # Version - should match kitup.sh
-INSTALLER_VERSION="0.0.12"
+INSTALLER_VERSION="0.0.13"
 
 # Colors for output
 RED='\033[0;31m'
@@ -163,18 +163,21 @@ install() {
         exit 1
     fi
 
-    # Download the entrypoint and Unix implementation
-    local entry_url="https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/$VERSION/packages/cli/$ENTRY_NAME"
-    local script_url="https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/$VERSION/packages/cli/$SHELL_SCRIPT_NAME"
+    # Download the entrypoint, shell script, and library files
+    local base_url="https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/$VERSION/packages/cli"
     local entry_path="$INSTALL_DIR/$ENTRY_NAME"
     local script_path="$INSTALL_DIR/$SHELL_SCRIPT_NAME"
+    local lib_config_path="$INSTALL_DIR/lib-config.sh"
+    local lib_pin_path="$INSTALL_DIR/lib-pin.sh"
 
     print_info "Downloading kitup..."
-    print_info "URLs:"
-    print_info "  $entry_url"
-    print_info "  $script_url"
+    print_info "Base URL: $base_url"
 
-    if ! download_file "$entry_url" "$entry_path" || ! download_file "$script_url" "$script_path"; then
+    # Download main files
+    if ! download_file "$base_url/$ENTRY_NAME" "$entry_path" || \
+       ! download_file "$base_url/$SHELL_SCRIPT_NAME" "$script_path" || \
+       ! download_file "$base_url/lib-config.sh" "$lib_config_path" || \
+       ! download_file "$base_url/lib-pin.sh" "$lib_pin_path"; then
         print_error "Failed to download kitup files"
         print_info "Please check your internet connection and try again"
         exit 1
@@ -182,8 +185,12 @@ install() {
 
     chmod +x "$entry_path"
     chmod +x "$script_path"
+    chmod +x "$lib_config_path"
+    chmod +x "$lib_pin_path"
     print_success "Downloaded $ENTRY_NAME to $entry_path"
     print_success "Downloaded $SHELL_SCRIPT_NAME to $script_path"
+    print_success "Downloaded lib-config.sh to $lib_config_path"
+    print_success "Downloaded lib-pin.sh to $lib_pin_path"
 
     # Add to PATH if needed
     if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
@@ -208,6 +215,8 @@ uninstall() {
 
     local entry_path="$INSTALL_DIR/$ENTRY_NAME"
     local script_path="$INSTALL_DIR/$SHELL_SCRIPT_NAME"
+    local lib_config_path="$INSTALL_DIR/lib-config.sh"
+    local lib_pin_path="$INSTALL_DIR/lib-pin.sh"
 
     if [ -f "$entry_path" ]; then
         rm -f "$entry_path"
@@ -217,6 +226,16 @@ uninstall() {
     if [ -f "$script_path" ]; then
         rm -f "$script_path"
         print_success "Removed $script_path"
+    fi
+
+    if [ -f "$lib_config_path" ]; then
+        rm -f "$lib_config_path"
+        print_success "Removed $lib_config_path"
+    fi
+
+    if [ -f "$lib_pin_path" ]; then
+        rm -f "$lib_pin_path"
+        print_success "Removed $lib_pin_path"
     fi
 
     print_success "Uninstallation complete!"

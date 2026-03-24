@@ -17,7 +17,7 @@ if [ -f "$SCRIPT_DIR/lib-pin.sh" ]; then
 fi
 
 # Version
-VERSION="0.0.12"
+VERSION="0.0.13"
 
 # Colors for output
 RED='\033[0;31m'
