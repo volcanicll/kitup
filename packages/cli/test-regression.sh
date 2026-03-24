@@ -149,7 +149,7 @@ exit 1
 
 make_stub "$TMP_DIR/bin/curl" '
 if [[ "$*" == *"api.github.com/repos/volcanicll/kitup/releases/latest"* ]]; then
-  echo "{\"tag_name\":\"v0.0.12\"}"
+  echo "{\"tag_name\":\"v0.0.13\"}"
   exit 0
 fi
 if [[ "$*" == *"api.github.com/repos/openai/codex/releases/latest"* ]]; then
@@ -158,6 +158,18 @@ if [[ "$*" == *"api.github.com/repos/openai/codex/releases/latest"* ]]; then
 fi
 if [[ "$*" == *"api.github.com/repos/QwenLM/qwen-code/releases/latest"* ]]; then
   echo "{\"tag_name\":\"v0.0.1\"}"
+  exit 0
+fi
+if [[ "$*" == *"api.github.com/repos/cursor-sh/cursor/releases/latest"* ]]; then
+  echo "{\"tag_name\":\"v0.2.0\"}"
+  exit 0
+fi
+if [[ "$*" == *"api.github.com/repos/codeium/windsurf/releases/latest"* ]]; then
+  echo "{\"tag_name\":\"v0.2.0\"}"
+  exit 0
+fi
+if [[ "$*" == *"api.github.com/repos/TabbyML/tabby/releases/latest"* ]]; then
+  echo "{\"tag_name\":\"v0.2.0\"}"
   exit 0
 fi
 if [[ "$*" == *"pypi.org/pypi/kimi-cli/json"* ]]; then
@@ -195,7 +207,7 @@ PATH="$TEST_PATH" HOME="$TMP_DIR/home" bash "$ROOT_DIR/kitup.sh" -a -n > "$TMP_D
 path_priority_output="$(cat "$TMP_DIR/path-priority.out")"
 assert_contains "$path_priority_output" "codex is already up to date (0.114.0)" "PATH priority prefers standalone binary over npm/brew installs"
 assert_not_contains "$path_priority_output" "Updating codex from 0.114.0" "No false update for current standalone binary"
-assert_contains "$path_priority_output" "A newer kitup version is available: 0.0.12 (current: 0.0.11)" "kitup checks its own version while being used"
+assert_contains "$path_priority_output" "A newer kitup version is available: 0.0.13 (current: 0.0.12)" "kitup checks its own version while being used"
 assert_contains "$path_priority_output" "Upgrade with: curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.sh | bash" "kitup shows a Unix self-update command"
 
 mkdir -p "$TMP_DIR/restore-home/.config/kitup" "$TMP_DIR/restore-src"
@@ -212,7 +224,7 @@ else
 fi
 
 entry_output="$(KITUP_SKIP_SELF_UPDATE_CHECK=1 PATH="$TEST_PATH" HOME="$TMP_DIR/home" bash "$ROOT_DIR/kitup" --version)"
-assert_contains "$entry_output" "kitup v0.0.11" "Unified entrypoint dispatches to shell implementation on Unix"
+assert_contains "$entry_output" "kitup v0.0.12" "Unified entrypoint dispatches to shell implementation on Unix"
 
 make_stub "$TMP_DIR/npm-global/bin/cline" '
 if [ "$1" = "--version" ] || [ "$1" = "-v" ]; then
@@ -242,3 +254,98 @@ assert_contains "$qwen_output" "qwen is already up to date (0.0.1)" "Qwen standa
 assert_not_contains "$qwen_output" "Updating qwen from 0.0.1 to 0.0.3" "Qwen standalone does not fall back to npm version when GitHub matches"
 
 printf 'All regression tests passed.\n'
+
+# Unit tests for new tools
+printf '\n=== Running unit tests for new tools ===\n'
+
+# Test Cursor CLI
+make_stub "$TMP_DIR/home/.local/bin/cursor" '
+if [ "$1" = "--version" ] || [ "$1" = "-v" ]; then
+  echo "Cursor CLI 0.1.0"
+  exit 0
+fi
+echo "unexpected cursor args: $*" >&2
+exit 1
+'
+
+# Test Windsurf CLI
+make_stub "$TMP_DIR/home/.local/bin/windsurf" '
+if [ "$1" = "--version" ] || [ "$1" = "-v" ]; then
+  echo "Windsurf CLI 0.1.0"
+  exit 0
+fi
+echo "unexpected windsurf args: $*" >&2
+exit 1
+'
+
+# Test Tabby
+make_stub "$TMP_DIR/home/.local/bin/tabby" '
+if [ "$1" = "--version" ] || [ "$1" = "-v" ]; then
+  echo "Tabby 0.1.0"
+  exit 0
+fi
+echo "unexpected tabby args: $*" >&2
+exit 1
+'
+
+# Update stub commands to handle new tools
+make_stub "$TMP_DIR/bin/curl" '
+if [[ "$*" == *"api.github.com/repos/volcanicll/kitup/releases/latest"* ]]; then
+  echo "{\"tag_name\":\"v0.0.13\"}"
+  exit 0
+fi
+if [[ "$*" == *"api.github.com/repos/openai/codex/releases/latest"* ]]; then
+  echo "{\"tag_name\":\"rust-v0.114.0\"}"
+  exit 0
+fi
+if [[ "$*" == *"api.github.com/repos/QwenLM/qwen-code/releases/latest"* ]]; then
+  echo "{\"tag_name\":\"v0.0.1\"}"
+  exit 0
+fi
+if [[ "$*" == *"api.github.com/repos/cursor-sh/cursor/releases/latest"* ]]; then
+  echo "{\"tag_name\":\"v0.2.0\"}"
+  exit 0
+fi
+if [[ "$*" == *"api.github.com/repos/codeium/windsurf/releases/latest"* ]]; then
+  echo "{\"tag_name\":\"v0.2.0\"}"
+  exit 0
+fi
+if [[ "$*" == *"api.github.com/repos/TabbyML/tabby/releases/latest"* ]]; then
+  echo "{\"tag_name\":\"v0.2.0\"}"
+  exit 0
+fi
+if [[ "$*" == *"pypi.org/pypi/kimi-cli/json"* ]]; then
+  echo "{\"info\":{\"version\":\"0.6.0\"}}"
+  exit 0
+fi
+echo "unexpected curl args: $*" >&2
+exit 1
+'
+
+# Test new tools are recognized
+PATH="$TEST_PATH" HOME="$TMP_DIR/home" KITUP_SKIP_SELF_UPDATE_CHECK=1 bash "$ROOT_DIR/kitup.sh" -l > "$TMP_DIR/list.out"
+list_output="$(cat "$TMP_DIR/list.out")"
+assert_contains "$list_output" "cursor" "List includes cursor tool"
+assert_contains "$list_output" "windsurf" "List includes windsurf tool"
+assert_contains "$list_output" "tabby" "List includes tabby tool"
+
+# Test new tools can be updated
+PATH="$TEST_PATH" HOME="$TMP_DIR/home" KITUP_SKIP_SELF_UPDATE_CHECK=1 bash "$ROOT_DIR/kitup.sh" cursor -n > "$TMP_DIR/cursor.out"
+cursor_output="$(cat "$TMP_DIR/cursor.out")"
+assert_contains "$cursor_output" "Updating cursor from 0.1.0 to 0.2.0" "Cursor version detection works"
+
+PATH="$TEST_PATH" HOME="$TMP_DIR/home" KITUP_SKIP_SELF_UPDATE_CHECK=1 bash "$ROOT_DIR/kitup.sh" windsurf -n > "$TMP_DIR/windsurf.out"
+windsurf_output="$(cat "$TMP_DIR/windsurf.out")"
+assert_contains "$windsurf_output" "Updating windsurf from 0.1.0 to 0.2.0" "Windsurf version detection works"
+
+PATH="$TEST_PATH" HOME="$TMP_DIR/home" KITUP_SKIP_SELF_UPDATE_CHECK=1 bash "$ROOT_DIR/kitup.sh" tabby -n > "$TMP_DIR/tabby.out"
+tabby_output="$(cat "$TMP_DIR/tabby.out")"
+assert_contains "$tabby_output" "Updating tabby from 0.1.0 to 0.2.0" "Tabby version detection works"
+
+# Test status includes new tools
+PATH="$TEST_PATH" HOME="$TMP_DIR/home" KITUP_SKIP_SELF_UPDATE_CHECK=1 bash "$ROOT_DIR/kitup.sh" -s > "$TMP_DIR/status.out"
+status_output="$(cat "$TMP_DIR/status.out")"
+assert_contains "$status_output" "cursor" "Status shows cursor"
+assert_contains "$status_output" "windsurf" "Status shows windsurf"
+assert_contains "$status_output" "tabby" "Status shows tabby"
+printf 'All unit tests for new tools passed.\n'

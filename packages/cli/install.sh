@@ -8,7 +8,7 @@
 set -e
 
 # Version - should match kitup.sh
-INSTALLER_VERSION="0.0.11"
+INSTALLER_VERSION="0.0.12"
 
 # Colors for output
 RED='\033[0;31m'

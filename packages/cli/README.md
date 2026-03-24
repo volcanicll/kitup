@@ -17,6 +17,9 @@ A unified, cross-platform updater for AI coding assistants. Keep all your AI pro
 | [Qwen Code](https://github.com/QwenLM/qwen-code) | ✅ | ✅ | ❌ | ❌ | ✅ |
 | [Goose (Block)](https://github.com/block/goose) | ❌ | ✅ | ❌ | ❌ | ✅ |
 | [Aider](https://github.com/Aider-AI/aider) | ❌ | ✅ | ✅ | ❌ | ✅ |
+| [Cursor CLI](https://github.com/cursor-sh/cursor) | ❌ | ✅ | ❌ | ❌ | ✅ |
+| [Windsurf CLI](https://github.com/codeium/windsurf) | ❌ | ✅ | ❌ | ❌ | ✅ |
+| [Tabby](https://github.com/TabbyML/tabby) | ❌ | ✅ | ❌ | ❌ | ✅ |
 
 ## Entrypoint Design
 
@@ -210,7 +213,7 @@ export GITHUB_TOKEN=your_token_here
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please see [CONTRIBUTING.md](../../CONTRIBUTING.md) for guidelines.
 
 ## License
 
@@ -264,3 +267,6 @@ kitup --all --dry-run
 - **Gemini CLI** - Google 的AI命令行工具
 - **Goose** - Block 的开源AI代理
 - **Aider** - 终端AI结对编程工具
+- **Cursor CLI** - Cursor AI 编辑器命令行工具
+- **Windsurf CLI** - Codeium 的 AI 编程助手
+- **Tabby** - 自托管 AI 编程助手

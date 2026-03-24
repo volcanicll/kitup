@@ -87,6 +87,27 @@ const tools = [
     color: "#4A90E2",
     installMethods: ["pipx", "uv", "brew"],
   },
+  {
+    name: "Cursor CLI",
+    description: "Cursor AI editor command line tool",
+    icon: Terminal,
+    color: "#007ACC",
+    installMethods: ["brew", "curl"],
+  },
+  {
+    name: "Windsurf CLI",
+    description: "Codeium's AI programming assistant",
+    icon: Sparkles,
+    color: "#00D9FF",
+    installMethods: ["brew", "curl"],
+  },
+  {
+    name: "Tabby",
+    description: "Self-hosted AI coding assistant",
+    icon: Cpu,
+    color: "#FF6B6B",
+    installMethods: ["brew"],
+  },
 ];
 
 const features = [
@@ -109,6 +130,16 @@ const features = [
     icon: Package,
     title: "Native Sources",
     description: "Supports npm, Homebrew, pipx, uv, Chocolatey, Scoop, and official installers.",
+  },
+  {
+    icon: Cpu,
+    title: "Parallel Updates",
+    description: "Update multiple tools simultaneously with configurable parallel jobs for faster updates.",
+  },
+  {
+    icon: GitBranch,
+    title: "Version Pinning",
+    description: "Pin specific versions of tools to prevent unwanted updates while keeping others current.",
   },
 ];
 
@@ -378,7 +409,7 @@ export default function Home() {
           <ScrollReveal>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card mb-8">
               <span className="status-dot status-dot-online" />
-              <span className="text-sm text-white/70">v0.0.11 Now Available</span>
+              <span className="text-sm text-white/70">v0.0.12 Now Available</span>
             </div>
           </ScrollReveal>
 
@@ -423,7 +454,7 @@ export default function Home() {
             <div className="grid grid-cols-3 gap-8 max-w-lg mx-auto">
               <div className="text-center">
                 <div className="text-3xl font-bold gradient-text-alt">
-                  <AnimatedCounter end={9} />
+                  <AnimatedCounter end={12} />
                 </div>
                 <div className="text-sm text-white/50 mt-1">AI Tools</div>
               </div>
@@ -509,6 +540,67 @@ export default function Home() {
               </ScrollReveal>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Tool Comparison Matrix */}
+      <section className="py-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          <ScrollReveal>
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                Tool <span className="gradient-text">Comparison</span>
+              </h2>
+              <p className="text-white/60 max-w-xl mx-auto">
+                Compare supported tools and their available installation methods.
+              </p>
+            </div>
+          </ScrollReveal>
+
+          <ScrollReveal delay={200}>
+            <div className="glass-card rounded-2xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="text-left p-4 font-semibold">Tool</th>
+                      <th className="text-center p-4 font-semibold">npm</th>
+                      <th className="text-center p-4 font-semibold">Homebrew</th>
+                      <th className="text-center p-4 font-semibold">pipx/uv</th>
+                      <th className="text-center p-4 font-semibold">Chocolatey</th>
+                      <th className="text-center p-4 font-semibold">Scoop</th>
+                      <th className="text-center p-4 font-semibold">Standalone</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tools.map((tool, index) => (
+                      <tr key={tool.name} className={index % 2 === 0 ? "bg-white/5" : ""}>
+                        <td className="p-4 font-medium">{tool.name}</td>
+                        <td className="text-center p-4">
+                          {tool.installMethods.includes("npm") && <Check className="w-4 h-4 mx-auto text-green-400" />}
+                        </td>
+                        <td className="text-center p-4">
+                          {tool.installMethods.includes("brew") && <Check className="w-4 h-4 mx-auto text-green-400" />}
+                        </td>
+                        <td className="text-center p-4">
+                          {(tool.installMethods.includes("pipx") || tool.installMethods.includes("uv")) && <Check className="w-4 h-4 mx-auto text-green-400" />}
+                        </td>
+                        <td className="text-center p-4">
+                          {tool.installMethods.includes("choco") && <Check className="w-4 h-4 mx-auto text-green-400" />}
+                        </td>
+                        <td className="text-center p-4">
+                          {tool.installMethods.includes("scoop") && <Check className="w-4 h-4 mx-auto text-green-400" />}
+                        </td>
+                        <td className="text-center p-4">
+                          {tool.installMethods.includes("curl") && <Check className="w-4 h-4 mx-auto text-green-400" />}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </ScrollReveal>
         </div>
       </section>
 

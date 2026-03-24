@@ -41,6 +41,9 @@ This is a monorepo containing the following packages:
 | [Qwen Code](https://github.com/QwenLM/qwen-code) | ✅ | ✅ | ❌ | ❌ | ✅ |
 | [Goose (Block)](https://github.com/block/goose) | ❌ | ✅ | ❌ | ❌ | ✅ |
 | [Aider](https://github.com/Aider-AI/aider) | ❌ | ✅ | ✅ | ❌ | ✅ |
+| [Cursor CLI](https://github.com/cursor-sh/cursor) | ❌ | ✅ | ❌ | ❌ | ✅ |
+| [Windsurf CLI](https://github.com/codeium/windsurf) | ❌ | ✅ | ❌ | ❌ | ✅ |
+| [Tabby](https://github.com/TabbyML/tabby) | ❌ | ✅ | ❌ | ❌ | ✅ |
 
 ## ✨ What Changed
 
@@ -65,10 +68,18 @@ This executes shell syntax checks, regression tests, and PowerShell syntax valid
 
 - [CLI Documentation](./packages/cli/README.md)
 - [Website](./packages/website/README.md)
+- [Architecture](./docs/ARCHITECTURE.md)
+- [Contributing Guide](./CONTRIBUTING.md)
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+
+Ways to contribute:
+- Add support for new AI coding assistants
+- Improve documentation
+- Report bugs and request features
+- Submit pull requests
 
 ## 📄 License
 

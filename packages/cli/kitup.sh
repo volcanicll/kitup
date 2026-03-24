@@ -2,13 +2,22 @@
 #
 # kitup
 # A unified updater for AI coding assistants
-# Supports: Claude Code, OpenCode, Codex, Gemini CLI, Kimi CLI, Cline CLI, Qwen Code, Goose, Aider
+# Supports: Claude Code, OpenCode, Codex, Gemini CLI, Kimi CLI, Cline CLI, Qwen Code, Goose, Aider, Cursor CLI, Windsurf CLI, Tabby
 #
 
 set -e
 
+# Source library files
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/lib-config.sh" ]; then
+    source "$SCRIPT_DIR/lib-config.sh"
+fi
+if [ -f "$SCRIPT_DIR/lib-pin.sh" ]; then
+    source "$SCRIPT_DIR/lib-pin.sh"
+fi
+
 # Version
-VERSION="0.0.11"
+VERSION="0.0.12"
 
 # Colors for output
 RED='\033[0;31m'
@@ -26,8 +35,12 @@ INSTALL_MISSING=false
 BACKUP_CONFIG=false
 VERBOSE=false
 RESTORE_CONFIG=false
+UPDATE_ALL=false
+PARALLEL_JOBS="${KITUP_PARALLEL_JOBS:-3}"  # Number of parallel update jobs
 SELF_UPDATE_TTL_SECONDS="${KITUP_SELF_UPDATE_TTL_SECONDS:-86400}"
 SELF_UPDATE_CACHE_FILE="${HOME}/.config/kitup/self_update_check"
+VERSION_CACHE_FILE="${HOME}/.config/kitup/version_cache"
+VERSION_CACHE_TTL_SECONDS="${KITUP_VERSION_CACHE_TTL_SECONDS:-3600}"  # 1 hour TTL
 
 # Tool definitions
 # Format: name|command|npm_package|brew_formula|pipx_package|uv_package|github_repo|install_url
@@ -41,6 +54,9 @@ declare -a TOOLS=(
     "qwen|qwen|@qwen-code/qwen-code|qwen-code|||QwenLM/qwen-code|https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen.sh"
     "goose|goose||block-goose-cli|||block/goose|https://github.com/block/goose/releases/download/stable/download_cli.sh"
     "aider|aider||aider|aider-chat|aider-chat|Aider-AI/aider|https://aider.chat/install.sh"
+    "cursor|cursor||cursor|||cursor-sh/cursor|https://downloader.cursor.sh/linux"
+    "windsurf|windsurf||windsurf|||codeium/windsurf|https://windsurf.sh/install"
+    "tabby|tabby||tabby|||TabbyML/tabby|"
 )
 
 # Print functions
@@ -321,6 +337,52 @@ get_github_latest_version() {
     fi
 }
 
+# Version cache functions
+get_cached_version() {
+    local cache_key="$1"
+    [ -f "$VERSION_CACHE_FILE" ] || return 1
+
+    local now cached_at cached_version
+    now=$(date +%s 2>/dev/null || echo "0")
+
+    while IFS='|' read -r key timestamp version; do
+        if [ "$key" = "$cache_key" ]; then
+            cached_at="$timestamp"
+            cached_version="$version"
+            [[ "$cached_at" =~ ^[0-9]+$ ]] || return 1
+
+            if (( now - cached_at <= VERSION_CACHE_TTL_SECONDS )); then
+                echo "$cached_version"
+                return 0
+            fi
+            return 1
+        fi
+    done < "$VERSION_CACHE_FILE"
+
+    return 1
+}
+
+set_cached_version() {
+    local cache_key="$1"
+    local version="$2"
+    local config_dir now
+
+    config_dir=$(dirname "$VERSION_CACHE_FILE")
+    mkdir -p "$config_dir"
+
+    now=$(date +%s 2>/dev/null || echo "0")
+
+    # Remove old entry for this key if exists
+    if [ -f "$VERSION_CACHE_FILE" ]; then
+        local temp_file="${VERSION_CACHE_FILE}.tmp"
+        grep -v "^${cache_key}|" "$VERSION_CACHE_FILE" > "$temp_file" 2>/dev/null || true
+        mv "$temp_file" "$VERSION_CACHE_FILE" 2>/dev/null || true
+    fi
+
+    # Add new entry
+    printf '%s|%s|%s\n' "$cache_key" "$now" "$version" >> "$VERSION_CACHE_FILE"
+}
+
 # Get latest version from PyPI
 get_pypi_latest_version() {
     local pkg="$1"
@@ -339,7 +401,21 @@ get_latest_version() {
     local pipx_pkg="$4"
     local uv_pkg="$5"
     local github_repo="$6"
+    local use_cache="${7:-true}"
     local latest_ver=""
+
+    # Create cache key
+    local cache_key="${method}:${npm_pkg}:${brew_formula}:${pipx_pkg}:${uv_pkg}:${github_repo}"
+
+    # Try cache first
+    if [ "$use_cache" = "true" ]; then
+        local cached_version
+        cached_version=$(get_cached_version "$cache_key") || true
+        if [ -n "$cached_version" ]; then
+            echo "$cached_version"
+            return
+        fi
+    fi
 
     case "$method" in
         npm)
@@ -358,33 +434,30 @@ get_latest_version() {
             [ -n "$github_repo" ] && latest_ver=$(get_github_latest_version "$github_repo")
             ;;
     esac
-    [ -n "$latest_ver" ] && { echo "$latest_ver"; return; }
 
     # Fallbacks when detection is incomplete
-    if [ -n "$npm_pkg" ]; then
+    if [ -z "$latest_ver" ] && [ -n "$npm_pkg" ]; then
         latest_ver=$(get_npm_latest_version "$npm_pkg")
-        [ -n "$latest_ver" ] && { echo "$latest_ver"; return; }
     fi
-    if [ -n "$pipx_pkg" ]; then
+    if [ -z "$latest_ver" ] && [ -n "$pipx_pkg" ]; then
         latest_ver=$(get_pypi_latest_version "$pipx_pkg")
-        [ -n "$latest_ver" ] && { echo "$latest_ver"; return; }
     fi
-    if [ -n "$uv_pkg" ]; then
+    if [ -z "$latest_ver" ] && [ -n "$uv_pkg" ]; then
         latest_ver=$(get_pypi_latest_version "$uv_pkg")
-        [ -n "$latest_ver" ] && { echo "$latest_ver"; return; }
     fi
-    if [ -n "$brew_formula" ]; then
+    if [ -z "$latest_ver" ] && [ -n "$brew_formula" ]; then
         latest_ver=$(get_brew_latest_version "$brew_formula")
-        [ -n "$latest_ver" ] && { echo "$latest_ver"; return; }
     fi
-
-    # Try GitHub releases as fallback
-    if [ -n "$github_repo" ]; then
+    if [ -z "$latest_ver" ] && [ -n "$github_repo" ]; then
         latest_ver=$(get_github_latest_version "$github_repo")
-        [ -n "$latest_ver" ] && { echo "$latest_ver"; return; }
     fi
 
-    echo ""
+    # Cache the result
+    if [ -n "$latest_ver" ] && [ "$use_cache" = "true" ]; then
+        set_cached_version "$cache_key" "$latest_ver"
+    fi
+
+    echo "$latest_ver"
 }
 
 version_is_newer() {
@@ -601,6 +674,9 @@ backup_configs() {
         "$HOME/.config/goose"
         "$HOME/.aider.conf.yml"
         "$HOME/.aider.model.settings.yml"
+        "$HOME/.config/cursor"
+        "$HOME/.config/windsurf"
+        "$HOME/.config/tabby"
     )
 
     for config in "${configs[@]}"; do
@@ -702,8 +778,21 @@ update_all() {
         backup_configs
     fi
 
+    # Check if we should use parallel updates
+    if [ "$PARALLEL_JOBS" -gt 1 ] && [ "${KITUP_ENABLE_PARALLEL:-true}" = "true" ]; then
+        update_all_parallel
+        return $?
+    fi
+
     for tool_def in "${TOOLS[@]}"; do
         IFS='|' read -r name cmd npm_pkg brew_formula pipx_pkg uv_pkg github_repo install_url <<< "$tool_def"
+
+        # Check if tool is excluded
+        if is_tool_excluded "$name"; then
+            print_info "Skipping $name (excluded)"
+            skipped=$((skipped + 1))
+            continue
+        fi
 
         if ! command_exists "$cmd"; then
             if [ "$INSTALL_MISSING" = true ]; then
@@ -722,23 +811,38 @@ update_all() {
         local method
         method=$(detect_install_method "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg")
 
-        local local_ver latest_ver
+        local local_ver latest_ver target_ver
         local_ver=$(get_local_version "$cmd")
-        latest_ver=$(get_latest_version "$method" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$github_repo")
 
-        if [ -z "$latest_ver" ]; then
-            print_warning "Cannot check latest version for $name"
-            skipped=$((skipped + 1))
-            continue
+        # Check if version is pinned
+        if has_pinned_version "$name"; then
+            local pinned_ver
+            pinned_ver=$(get_pinned_version "$name")
+            target_ver="$pinned_ver"
+
+            if [ "$local_ver" = "$pinned_ver" ] && [ "$FORCE" = false ]; then
+                print_info "$name is at pinned version ($local_ver)"
+                skipped=$((skipped + 1))
+                continue
+            fi
+        else
+            latest_ver=$(get_latest_version "$method" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$github_repo")
+            target_ver="$latest_ver"
+
+            if [ -z "$latest_ver" ]; then
+                print_warning "Cannot check latest version for $name"
+                skipped=$((skipped + 1))
+                continue
+            fi
+
+            if [ "$local_ver" = "$latest_ver" ] && [ "$FORCE" = false ]; then
+                print_info "$name is already up to date ($local_ver)"
+                skipped=$((skipped + 1))
+                continue
+            fi
         fi
 
-        if [ "$local_ver" = "$latest_ver" ] && [ "$FORCE" = false ]; then
-            print_info "$name is already up to date ($local_ver)"
-            skipped=$((skipped + 1))
-            continue
-        fi
-
-        print_info "Updating $name from $local_ver to $latest_ver..."
+        print_info "Updating $name from $local_ver to $target_ver..."
         if update_tool "$name" "$method" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$install_url"; then
             print_success "$name updated successfully"
             updated=$((updated + 1))
@@ -746,6 +850,134 @@ update_all() {
             print_error "Failed to update $name"
             failed=$((failed + 1))
         fi
+    done
+
+    printf "\n"
+    print_header "Update Summary"
+    echo "  Updated: $updated"
+    echo "  Failed: $failed"
+    echo "  Skipped: $skipped"
+}
+
+# Update all tools in parallel
+update_all_parallel() {
+    local updated=0
+    local failed=0
+    local skipped=0
+    local pids=()
+    local tmp_dir=$(mktemp -d)
+    trap 'rm -rf "$tmp_dir"' EXIT
+
+    # Create status files for each job
+    local job_count=0
+
+    for tool_def in "${TOOLS[@]}"; do
+        IFS='|' read -r name cmd npm_pkg brew_formula pipx_pkg uv_pkg github_repo install_url <<< "$tool_def"
+
+        # Check if tool is installed
+        if ! command_exists "$cmd"; then
+            if [ "$INSTALL_MISSING" = true ]; then
+                # Install sequentially (not parallelized for safety)
+                if install_tool "$name" "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$install_url"; then
+                    updated=$((updated + 1))
+                else
+                    failed=$((failed + 1))
+                fi
+            else
+                print_info "Skipping $name (not installed)"
+                skipped=$((skipped + 1))
+            fi
+            continue
+        fi
+
+        # Wait if we've reached max parallel jobs
+        while [ ${#pids[@]} -ge "$PARALLEL_JOBS" ]; do
+            for i in "${!pids[@]}"; do
+                if ! kill -0 "${pids[$i]}" 2>/dev/null; then
+                    wait "${pids[$i]}"
+                    unset "pids[$i]"
+                fi
+            done
+            pids=("${pids[@]}")
+            sleep 0.1
+        done
+
+        # Run update in background
+        (
+            local status_file="$tmp_dir/job_$job_count"
+            local method
+            method=$(detect_install_method "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg")
+
+            local local_ver latest_ver
+            local_ver=$(get_local_version "$cmd")
+            latest_ver=$(get_latest_version "$method" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$github_repo" "true")
+
+            if [ -z "$latest_ver" ]; then
+                echo "skip|Cannot check latest version" > "$status_file"
+                exit 0
+            fi
+
+            if [ "$local_ver" = "$latest_ver" ] && [ "$FORCE" = false ]; then
+                echo "skip|$local_ver" > "$status_file"
+                exit 0
+            fi
+
+            if update_tool "$name" "$method" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$install_url"; then
+                echo "success|$latest_ver" > "$status_file"
+            else
+                echo "fail|update failed" > "$status_file"
+            fi
+        ) &
+
+        pids+=($!)
+        job_count=$((job_count + 1))
+    done
+
+    # Wait for all remaining jobs
+    for pid in "${pids[@]}"; do
+        wait "$pid" 2>/dev/null || true
+    done
+
+    # Process results
+    job_count=0
+    for tool_def in "${TOOLS[@]}"; do
+        IFS='|' read -r name cmd npm_pkg brew_formula pipx_pkg uv_pkg github_repo install_url <<< "$tool_def"
+
+        # Check if tool is excluded
+        if is_tool_excluded "$name"; then
+            print_info "Skipping $name (excluded)"
+            skipped=$((skipped + 1))
+            continue
+        fi
+
+        if ! command_exists "$cmd"; then
+            continue
+        fi
+
+        local status_file="$tmp_dir/job_$job_count"
+        if [ ! -f "$status_file" ]; then
+            continue
+        fi
+
+        local result status message
+        IFS='|' read -r result message < "$status_file"
+
+        case "$result" in
+            skip)
+                print_info "$name is already up to date ($message)"
+                skipped=$((skipped + 1))
+                ;;
+            success)
+                print_success "$name updated successfully ($message)"
+                updated=$((updated + 1))
+                ;;
+            fail)
+                print_error "Failed to update $name: $message"
+                failed=$((failed + 1))
+                ;;
+        esac
+
+        job_count=$((job_count + 1))
     done
 
     printf "\n"
@@ -821,10 +1053,14 @@ show_help() {
 kitup v$VERSION
 
 A unified updater for AI coding assistants
-Supports: Claude Code, OpenCode, Codex, Gemini CLI, Kimi CLI, Cline CLI, Qwen Code, Goose, Aider
+Supports: Claude Code, OpenCode, Codex, Gemini CLI, Kimi CLI, Cline CLI, Qwen Code, Goose, Aider, Cursor CLI, Windsurf CLI, Tabby
 
 Usage:
   kitup [options] [tool1] [tool2] ...
+  kitup pin <tool> <version>        Pin a tool to specific version
+  kitup unpin <tool>                 Remove version pin for a tool
+  kitup list-pins                   List all pinned versions
+  kitup config                      Create/edit configuration file
 
 Options:
   -h, --help          Show this help message
@@ -837,6 +1073,9 @@ Options:
   -f, --force         Force update even if already at latest version
   -b, --backup        Backup configuration before updating
       --restore       Restore configuration from last backup
+      --exclude TOOLS  Comma-separated list of tools to exclude from updates
+      --parallel N    Set number of parallel update jobs (default: 3)
+      --no-parallel   Disable parallel updates
   --verbose           Enable verbose output
 
 Examples:
@@ -845,11 +1084,22 @@ Examples:
   kitup --all --install       Update all and install missing tools
   kitup claude codex          Update specific tools
   kitup --all --dry-run       Preview what would be updated
+  kitup --all --parallel 5    Update with 5 parallel jobs
+  kitup pin claude 0.2.45     Pin claude to version 0.2.45
+  kitup unpin claude          Remove version pin for claude
+  kitup list-pins             List all pinned versions
+  kitup --exclude kimi,gemini --all  Update all except kimi and gemini
 
 Environment Variables:
   GITHUB_TOKEN        GitHub API token (for higher rate limits)
   KITUP_SKIP_SELF_UPDATE_CHECK=1
                       Disable the once-per-use kitup version check
+  KITUP_PARALLEL_JOBS=N
+                      Number of parallel update jobs (default: 3)
+  KITUP_ENABLE_PARALLEL=0
+                      Disable parallel updates
+  KITUP_VERSION_CACHE_TTL_SECONDS=N
+                      Version cache TTL in seconds (default: 3600)
 EOF
 }
 
@@ -903,6 +1153,18 @@ main() {
                 VERBOSE=true
                 shift
                 ;;
+            --parallel)
+                PARALLEL_JOBS="$2"
+                shift 2
+                ;;
+            --no-parallel)
+                PARALLEL_JOBS=1
+                shift
+                ;;
+            --exclude)
+                KITUP_EXCLUDE_TOOLS="$2"
+                shift 2
+                ;;
             -*)
                 print_error "Unknown option: $1"
                 echo "Use --help for usage information"
@@ -914,6 +1176,44 @@ main() {
                 ;;
         esac
     done
+
+    # Load user configuration
+    load_config
+
+    # Handle pin command
+    if [ ${#args[@]} -gt 0 ] && [ "${args[0]}" = "pin" ]; then
+        if [ ${#args[@]} -lt 3 ]; then
+            print_error "Usage: kitup pin <tool> <version>"
+            echo "Example: kitup pin claude 0.2.45"
+            exit 1
+        fi
+        set_pinned_version "${args[1]}" "${args[2]}"
+        exit 0
+    fi
+
+    # Handle unpin command
+    if [ ${#args[@]} -gt 0 ] && [ "${args[0]}" = "unpin" ]; then
+        if [ ${#args[@]} -lt 2 ]; then
+            print_error "Usage: kitup unpin <tool>"
+            echo "Example: kitup unpin claude"
+            exit 1
+        fi
+        remove_pinned_version "${args[1]}"
+        exit 0
+    fi
+
+    # Handle list-pins command
+    if [ ${#args[@]} -gt 0 ] && [ "${args[0]}" = "list-pins" ]; then
+        list_pinned_versions
+        exit 0
+    fi
+
+    # Handle config command
+    if [ ${#args[@]} -gt 0 ] && [ "${args[0]}" = "config" ]; then
+        init_config
+        print_info "Configuration file: $CONFIG_FILE_JSON"
+        exit 0
+    fi
 
     # Handle restore
     if [ "$RESTORE_CONFIG" = true ]; then

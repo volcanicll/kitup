@@ -1,13 +1,13 @@
 #
 # kitup
 # A unified updater for AI coding assistants (Windows PowerShell version)
-# Supports: Claude Code, OpenCode, Codex, Gemini CLI, Kimi CLI, Cline CLI, Qwen Code, Goose, Aider
+# Supports: Claude Code, OpenCode, Codex, Gemini CLI, Kimi CLI, Cline CLI, Qwen Code, Goose, Aider, Cursor CLI, Windsurf CLI, Tabby
 #
 
 $ErrorActionPreference = "Stop"
 
 # Version
-$script:VERSION = "0.0.11"
+$script:VERSION = "0.0.12"
 
 # Configuration
 $script:DRY_RUN = $false
@@ -29,7 +29,10 @@ $script:TOOLS = @(
     @("cline", "cline", "cline", $null, $null, $null, "cline/cline", $null, $null, $null),
     @("qwen", "qwen", "@qwen-code/qwen-code", $null, $null, $null, "QwenLM/qwen-code", "https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen.sh", $null, $null),
     @("goose", "goose", $null, "block-goose-cli", $null, $null, "block/goose", "https://github.com/block/goose/releases/download/stable/download_cli.sh", $null, $null),
-    @("aider", "aider", $null, "aider", "aider-chat", "aider-chat", "Aider-AI/aider", "https://aider.chat/install.sh", $null, $null)
+    @("aider", "aider", $null, "aider", "aider-chat", "aider-chat", "Aider-AI/aider", "https://aider.chat/install.sh", $null, $null),
+    @("cursor", "cursor", $null, "cursor", $null, $null, "cursor-sh/cursor", $null, $null, $null),
+    @("windsurf", "windsurf", $null, "windsurf", $null, $null, "codeium/windsurf", $null, $null, $null),
+    @("tabby", "tabby", $null, "tabby", $null, $null, "TabbyML/tabby", $null, $null, $null)
 )
 
 # Print functions
@@ -572,7 +575,10 @@ function Backup-Configs {
         "$env:USERPROFILE\.config\codex",
         "$env:USERPROFILE\.config\gemini",
         "$env:USERPROFILE\.config\goose",
-        "$env:USERPROFILE\.aider.conf.yml"
+        "$env:USERPROFILE\.aider.conf.yml",
+        "$env:USERPROFILE\.config\cursor",
+        "$env:USERPROFILE\.config\windsurf",
+        "$env:USERPROFILE\.config\tabby"
     )
 
     foreach ($config in $configs) {
@@ -804,7 +810,7 @@ function Show-Help {
 kitup v$VERSION
 
 A unified updater for AI coding assistants
-Supports: Claude Code, OpenCode, Codex, Gemini CLI, Kimi CLI, Cline CLI, Qwen Code, Goose, Aider
+Supports: Claude Code, OpenCode, Codex, Gemini CLI, Kimi CLI, Cline CLI, Qwen Code, Goose, Aider, Cursor CLI, Windsurf CLI, Tabby
 
 Usage:
   kitup [options] [tool1] [tool2] ...
