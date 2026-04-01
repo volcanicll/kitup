@@ -1,6 +1,27 @@
 # Changelog
 
-## 0.0.12 - 2026-03-24
+## 0.0.14 - 2026-04-01
+
+### Fixes
+- fix script exiting when GitHub API rate limit is exceeded
+- fix `notify_self_update()` returning non-zero exit code causing `set -e` to terminate script
+- fix `get_github_latest_version()` not handling API error responses properly
+
+### Improvements
+- prioritize `gh` CLI for version checks when available (uses authenticated requests, no rate limits)
+- add proper error detection for GitHub API error messages (rate limit, repository not found, etc.)
+- improve `null` response handling from `jq` when API returns errors
+- add `|| true` to prevent command failures from exiting script under `set -e`
+
+### Technical Details
+- When GitHub API returns an error message (e.g., rate limit exceeded), the script now gracefully returns empty string instead of parsing error text as version
+- `gh` CLI is now tried first for GitHub version checks since it uses authenticated requests with much higher rate limits
+- All return statements in `notify_self_update()` now explicitly return 0 to prevent `set -e` termination
+
+## 0.0.13 - 2026-03-24
+
+### Features
+- add parallel update support with configurable job count (default: 3)
 
 ### Performance
 - add parallel update support with configurable job count (default: 3)

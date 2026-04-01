@@ -1,6 +1,6 @@
 {
   "name": "@kitup/cli",
-  "version": "0.0.12",
+  "version": "0.0.14",
   "description": "A unified, cross-platform updater for AI coding assistants",
   "scripts": {
     "test": "bash -n install.sh && bash -n kitup && bash -n kitup.sh && bash test-regression.sh && bash -lc 'if command -v pwsh >/dev/null 2>&1; then pwsh -NoProfile -Command \"[void][System.Management.Automation.Language.Parser]::ParseFile(\\\"kitup.ps1\\\",[ref]$null,[ref]$null)\"; else echo \"Skipping pwsh syntax validation\"; fi'"

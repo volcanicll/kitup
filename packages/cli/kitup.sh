@@ -17,7 +17,7 @@ if [ -f "$SCRIPT_DIR/lib-pin.sh" ]; then
 fi
 
 # Version
-VERSION="0.0.13"
+VERSION="0.0.14"
 
 # Colors for output
 RED='\033[0;31m'
@@ -328,8 +328,34 @@ get_brew_latest_version() {
 # Get latest version from GitHub releases
 get_github_latest_version() {
     local repo="$1"
+
+    # Try gh CLI first (authenticated, no rate limit issues)
+    if command_exists gh; then
+        local version
+        version=$(gh release view --repo "$repo" --json tagName -q '.tagName' 2>/dev/null || echo "")
+        if [ -n "$version" ]; then
+            parse_version "$version"
+            return
+        fi
+    fi
+
+    # Fallback to GitHub API
     if command_exists curl && command_exists jq; then
-        parse_version "$(curl -s "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null | jq -r '.tag_name' 2>/dev/null || echo "")"
+        local response version
+        response=$(curl -s "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null)
+        # Check if API returned an error (rate limit, etc.)
+        if echo "$response" | grep -q '"message"'; then
+            # API error, return empty
+            echo ""
+            return
+        fi
+        version=$(echo "$response" | jq -r '.tag_name' 2>/dev/null || echo "")
+        # Check for null or error response
+        if [ "$version" = "null" ] || [ -z "$version" ]; then
+            echo ""
+            return
+        fi
+        parse_version "$version"
     elif command_exists curl; then
         parse_version "$(curl -s "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null | tr -d '\n' | sed -n 's/.*"tag_name":"\([^"]*\)".*/\1/p' | head -1)"
     else
@@ -537,11 +563,11 @@ get_kitup_latest_version() {
 }
 
 notify_self_update() {
-    [ "${KITUP_SKIP_SELF_UPDATE_CHECK:-0}" = "1" ] && return
+    [ "${KITUP_SKIP_SELF_UPDATE_CHECK:-0}" = "1" ] && return 0
 
     local latest_version
-    latest_version=$(get_kitup_latest_version)
-    [ -n "$latest_version" ] || return
+    latest_version=$(get_kitup_latest_version) || true
+    [ -n "$latest_version" ] || return 0
 
     if version_is_newer "$latest_version" "$VERSION"; then
         printf "\n"
