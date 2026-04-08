@@ -15,9 +15,12 @@ fi
 if [ -f "$SCRIPT_DIR/lib-pin.sh" ]; then
     source "$SCRIPT_DIR/lib-pin.sh"
 fi
+if [ -f "$SCRIPT_DIR/lib-tui.sh" ]; then
+    source "$SCRIPT_DIR/lib-tui.sh"
+fi
 
 # Version
-VERSION="0.0.14"
+VERSION="0.0.15"
 
 # Colors for output
 RED='\033[0;31m'
@@ -770,6 +773,23 @@ show_status() {
         echo "  3. Remove duplicates manually, then reinstall with preferred method"
         echo ""
     fi
+
+    # Show detected new tools
+    if command -v detect_new_tools > /dev/null 2>&1; then
+        local new_tools
+        new_tools=$(detect_new_tools 2>/dev/null || true)
+        if [ -n "$new_tools" ]; then
+            printf "\n"
+            print_info "New AI tools detected in PATH:"
+            while IFS='|' read -r nname ncmd nver npath; do
+                [ -z "$nname" ] && continue
+                printf "  ⚑ %-12s %-10s %s\n" "$nname" "${nver:--}" "$npath"
+            done <<< "$new_tools"
+            echo ""
+            print_info "Tip: Request support at github.com/volcanicll/kitup/issues"
+            printf "\n"
+        fi
+    fi
 }
 
 # List all supported tools
@@ -791,14 +811,11 @@ list_tools() {
     done
 }
 
-# Update all installed tools
+# Update all installed tools (with result collection)
 update_all() {
-    local updated=0
-    local failed=0
-    local skipped=0
-
-    print_header "Updating AI Tools"
-    printf "\n"
+    local results_dir
+    results_dir=$(mktemp -d)
+    trap 'rm -rf "$results_dir"' RETURN
 
     if [ "$BACKUP_CONFIG" = true ]; then
         backup_configs
@@ -806,31 +823,42 @@ update_all() {
 
     # Check if we should use parallel updates
     if [ "$PARALLEL_JOBS" -gt 1 ] && [ "${KITUP_ENABLE_PARALLEL:-true}" = "true" ]; then
-        update_all_parallel
+        update_all_parallel "$results_dir"
         return $?
     fi
+
+    local idx=0
+    local start_time
+    start_time=$(date +%s)
+
+    print_header "Updating AI Tools"
+    printf "\n"
 
     for tool_def in "${TOOLS[@]}"; do
         IFS='|' read -r name cmd npm_pkg brew_formula pipx_pkg uv_pkg github_repo install_url <<< "$tool_def"
 
         # Check if tool is excluded
         if is_tool_excluded "$name"; then
-            print_info "Skipping $name (excluded)"
-            skipped=$((skipped + 1))
+            echo "skip|$name|-|-|-|0|excluded" > "$results_dir/result_${idx}.txt"
+            idx=$((idx + 1))
             continue
         fi
 
         if ! command_exists "$cmd"; then
             if [ "$INSTALL_MISSING" = true ]; then
+                local tool_start
+                tool_start=$(date +%s)
                 if install_tool "$name" "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$install_url"; then
-                    updated=$((updated + 1))
+                    local tool_elapsed=$(( $(date +%s) - tool_start ))
+                    echo "success|$name|installed|-|$(detect_install_method "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg")|${tool_elapsed}|" > "$results_dir/result_${idx}.txt"
                 else
-                    failed=$((failed + 1))
+                    local tool_elapsed=$(( $(date +%s) - tool_start ))
+                    echo "fail|$name|-|-|-|${tool_elapsed}|install failed" > "$results_dir/result_${idx}.txt"
                 fi
             else
-                print_info "Skipping $name (not installed)"
-                skipped=$((skipped + 1))
+                echo "skip|$name|-|-|-|0|not installed" > "$results_dir/result_${idx}.txt"
             fi
+            idx=$((idx + 1))
             continue
         fi
 
@@ -847,8 +875,8 @@ update_all() {
             target_ver="$pinned_ver"
 
             if [ "$local_ver" = "$pinned_ver" ] && [ "$FORCE" = false ]; then
-                print_info "$name is at pinned version ($local_ver)"
-                skipped=$((skipped + 1))
+                echo "skip|$name|$local_ver|$target_ver|$method|0|pinned" > "$results_dir/result_${idx}.txt"
+                idx=$((idx + 1))
                 continue
             fi
         else
@@ -856,43 +884,63 @@ update_all() {
             target_ver="$latest_ver"
 
             if [ -z "$latest_ver" ]; then
-                print_warning "Cannot check latest version for $name"
-                skipped=$((skipped + 1))
+                echo "skip|$name|$local_ver|-|$method|0|version unknown" > "$results_dir/result_${idx}.txt"
+                idx=$((idx + 1))
                 continue
             fi
 
             if [ "$local_ver" = "$latest_ver" ] && [ "$FORCE" = false ]; then
-                print_info "$name is already up to date ($local_ver)"
-                skipped=$((skipped + 1))
+                echo "skip|$name|$local_ver|$latest_ver|$method|0|up to date" > "$results_dir/result_${idx}.txt"
+                idx=$((idx + 1))
                 continue
             fi
         fi
 
+        local tool_start tool_elapsed
+        tool_start=$(date +%s)
         print_info "Updating $name from $local_ver to $target_ver..."
         if update_tool "$name" "$method" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$install_url"; then
-            print_success "$name updated successfully"
-            updated=$((updated + 1))
+            tool_elapsed=$(( $(date +%s) - tool_start ))
+            echo "success|$name|$local_ver|$target_ver|$method|${tool_elapsed}|" > "$results_dir/result_${idx}.txt"
         else
-            print_error "Failed to update $name"
-            failed=$((failed + 1))
+            tool_elapsed=$(( $(date +%s) - tool_start ))
+            echo "fail|$name|$local_ver|$target_ver|$method|${tool_elapsed}|update failed" > "$results_dir/result_${idx}.txt"
         fi
+        idx=$((idx + 1))
     done
 
-    printf "\n"
-    print_header "Update Summary"
-    echo "  Updated: $updated"
-    echo "  Failed: $failed"
-    echo "  Skipped: $skipped"
+    local total_elapsed=$(( $(date +%s) - start_time ))
+
+    # Render summary
+    if type render_summary > /dev/null 2>&1; then
+        render_summary "$results_dir" "$total_elapsed"
+    else
+        # Fallback if lib-tui.sh not loaded
+        local updated=0 failed=0 skipped=0
+        for f in "$results_dir"/result_*.txt; do
+            [ -f "$f" ] || continue
+            local status
+            status=$(cut -d'|' -f1 < "$f")
+            case "$status" in
+                success) updated=$((updated + 1)) ;;
+                fail) failed=$((failed + 1)) ;;
+                *) skipped=$((skipped + 1)) ;;
+            esac
+        done
+        printf "\n"
+        print_header "Update Summary"
+        echo "  Updated: $updated"
+        echo "  Failed: $failed"
+        echo "  Skipped: $skipped"
+    fi
 }
 
-# Update all tools in parallel
+# Update all tools in parallel (with result collection)
 update_all_parallel() {
-    local updated=0
-    local failed=0
-    local skipped=0
+    local results_dir="$1"
     local pids=()
-    local tmp_dir=$(mktemp -d)
-    trap 'rm -rf "$tmp_dir"' EXIT
+    local tmp_dir
+    tmp_dir=$(mktemp -d)
 
     # Create status files for each job
     local job_count=0
@@ -1021,6 +1069,12 @@ update_specific() {
         backup_configs
     fi
 
+    local results_dir
+    results_dir=$(mktemp -d)
+    local start_time
+    start_time=$(date +%s)
+    local idx=0
+
     for target in "${targets[@]}"; do
         local found=false
 
@@ -1032,11 +1086,21 @@ update_specific() {
 
                 if ! command_exists "$cmd"; then
                     if [ "$INSTALL_MISSING" = true ]; then
-                        install_tool "$name" "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$install_url"
+                        local tool_start tool_elapsed
+                        tool_start=$(date +%s)
+                        if install_tool "$name" "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$install_url"; then
+                            tool_elapsed=$(( $(date +%s) - tool_start ))
+                            echo "success|$name|installed|-|$(detect_install_method "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg")|${tool_elapsed}|" > "$results_dir/result_${idx}.txt"
+                        else
+                            tool_elapsed=$(( $(date +%s) - tool_start ))
+                            echo "fail|$name|-|-|-|${tool_elapsed}|install failed" > "$results_dir/result_${idx}.txt"
+                        fi
                     else
                         print_error "$name is not installed (use --install to install)"
+                        echo "fail|$name|-|-|-|0|not installed" > "$results_dir/result_${idx}.txt"
                     fi
-                    continue
+                    idx=$((idx + 1))
+                    continue 2
                 fi
 
                 local method
@@ -1048,20 +1112,29 @@ update_specific() {
 
                 if [ -z "$latest_ver" ]; then
                     print_warning "Cannot check latest version for $name"
-                    continue
+                    echo "skip|$name|$local_ver|-|$method|0|version unknown" > "$results_dir/result_${idx}.txt"
+                    idx=$((idx + 1))
+                    continue 2
                 fi
 
                 if [ "$local_ver" = "$latest_ver" ] && [ "$FORCE" = false ]; then
                     print_info "$name is already up to date ($local_ver)"
-                    continue
+                    echo "skip|$name|$local_ver|$latest_ver|$method|0|up to date" > "$results_dir/result_${idx}.txt"
+                    idx=$((idx + 1))
+                    continue 2
                 fi
 
+                local tool_start tool_elapsed
+                tool_start=$(date +%s)
                 print_info "Updating $name from $local_ver to $latest_ver..."
                 if update_tool "$name" "$method" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$install_url"; then
-                    print_success "$name updated successfully"
+                    tool_elapsed=$(( $(date +%s) - tool_start ))
+                    echo "success|$name|$local_ver|$latest_ver|$method|${tool_elapsed}|" > "$results_dir/result_${idx}.txt"
                 else
-                    print_error "Failed to update $name"
+                    tool_elapsed=$(( $(date +%s) - tool_start ))
+                    echo "fail|$name|$local_ver|$latest_ver|$method|${tool_elapsed}|update failed" > "$results_dir/result_${idx}.txt"
                 fi
+                idx=$((idx + 1))
 
                 break
             fi
@@ -1069,6 +1142,198 @@ update_specific() {
 
         if [ "$found" = false ]; then
             print_error "Unknown tool: $target (use --list to see supported tools)"
+        fi
+    done
+
+    local total_elapsed=$(( $(date +%s) - start_time ))
+
+    # Render summary
+    if type render_summary > /dev/null 2>&1; then
+        render_summary "$results_dir" "$total_elapsed"
+    else
+        local updated=0 failed=0 skipped=0
+        for f in "$results_dir"/result_*.txt; do
+            [ -f "$f" ] || continue
+            local status
+            status=$(cut -d'|' -f1 < "$f")
+            case "$status" in
+                success) updated=$((updated + 1)) ;;
+                fail) failed=$((failed + 1)) ;;
+                *) skipped=$((skipped + 1)) ;;
+            esac
+        done
+        printf "\n"
+        print_header "Update Summary"
+        echo "  Updated: $updated"
+        echo "  Failed: $failed"
+        echo "  Skipped: $skipped"
+    fi
+
+    rm -rf "$results_dir"
+}
+
+# Update specific tools with summary (called from TUI)
+update_specific_with_summary() {
+    local targets=("$@")
+    FORCE=false
+    INSTALL_MISSING=false
+    update_specific "${targets[@]}"
+}
+
+# Detect new AI tools in PATH not yet supported by kitup
+detect_new_tools() {
+    local config_val=""
+    if [ -f "$CONFIG_FILE_JSON" ]; then
+        config_val=$(grep '"detect_new_tools"' "$CONFIG_FILE_JSON" 2>/dev/null | sed 's/.*: *//;s/[,"]//g' | tr -d ' ')
+    fi
+    [ "$config_val" = "false" ] && return 0
+
+    # Candidate AI tools not in TOOLS array
+    local -a CANDIDATES=(
+        "augment|augment"
+        "copilot|github-copilot-cli"
+        "continue|continue"
+        "fabric|fabric"
+        "devika|devika"
+        "swe-agent|sweagent"
+        "openhands|openhands"
+        "pearai|pearai"
+        "warp|warp"
+        "void-editor|void"
+        "trae|trae"
+        "cody|cody"
+        "amazon-q|q"
+        "tabnine|tabnine"
+        "codeium|codeium"
+        "sourcegraph|src"
+    )
+
+    for candidate in "${CANDIDATES[@]}"; do
+        IFS='|' read -r cand_name cand_cmd <<< "$candidate"
+
+        # Skip if already in TOOLS
+        local is_known=false
+        for tool_def in "${TOOLS[@]}"; do
+            local t_name
+            t_name=$(echo "$tool_def" | cut -d'|' -f1)
+            if [ "$t_name" = "$cand_name" ]; then
+                is_known=true
+                break
+            fi
+        done
+        [ "$is_known" = true ] && continue
+
+        if command_exists "$cand_cmd"; then
+            local ver path
+            ver=$(get_local_version "$cand_cmd")
+            path=$(get_command_path "$cand_cmd")
+            echo "$cand_name|$cand_cmd|$ver|$path"
+        fi
+    done
+}
+
+# Show changelog for a tool
+show_changelog() {
+    local tool_name="$1"
+    local count="${2:-3}"
+    local since_current="${3:-false}"
+
+    local github_repo=""
+    for tool_def in "${TOOLS[@]}"; do
+        IFS='|' read -r name cmd npm_pkg brew_formula pipx_pkg uv_pkg repo install_url <<< "$tool_def"
+        if [ "$name" = "$tool_name" ]; then
+            github_repo="$repo"
+            break
+        fi
+    done
+
+    if [ -z "$github_repo" ]; then
+        print_error "Unknown tool: $tool_name (use --list to see supported tools)"
+        return 1
+    fi
+
+    # Fetch releases from GitHub
+    local releases=""
+    if command_exists gh; then
+        releases=$(gh release list --repo "$github_repo" --limit "$count" --json tagName,publishedAt,body 2>/dev/null || echo "")
+    fi
+
+    if [ -z "$releases" ] && command_exists curl && command_exists jq; then
+        releases=$(curl -s "https://api.github.com/repos/$github_repo/releases?per_page=$count" 2>/dev/null | jq -c '.[] | {tag_name, published_at, body}' 2>/dev/null || echo "")
+    fi
+
+    if [ -z "$releases" ]; then
+        print_warning "Unable to fetch changelog for $tool_name"
+        return 1
+    fi
+
+    # Get current version for comparison
+    local current_ver=""
+    for tool_def in "${TOOLS[@]}"; do
+        IFS='|' read -r name cmd _ <<< "$tool_def"
+        if [ "$name" = "$tool_name" ] && command_exists "$cmd"; then
+            current_ver=$(get_local_version "$cmd")
+            break
+        fi
+    done
+
+    printf '\n'
+    tui_box_header "$tool_name changelog"
+
+    # Parse and display each release
+    if command_exists jq; then
+        echo "$releases" | jq -r '.tag_name // .tagName' 2>/dev/null | while IFS= read -r tag; do
+            :
+        done
+        # Use jq to iterate
+        echo "$releases" | jq -r '.[]? | "\(.tag_name // .tagName)|\(.published_at // .publishedAt)|\(.body)"' 2>/dev/null | while IFS='|' read -r tag date body; do
+            [ -z "$tag" ] && continue
+
+            local clean_tag
+            clean_tag=$(parse_version "$tag")
+            local date_short=""
+            [ -n "$date" ] && date_short=$(echo "$date" | cut -dT -f1)
+
+            tui_box_line "${BOLD}$clean_tag${NC} ($date_short)"
+            tui_box_rule "$(tui_cols)" "│" "│"
+
+            # Render body (strip markdown, limit lines)
+            if [ -n "$body" ]; then
+                local line_count=0
+                echo "$body" | while IFS= read -r line; do
+                    [ $line_count -ge 8 ] && break
+                    local clean_line
+                    clean_line=$(echo "$line" | sed -e 's/^###* //' -e 's/\*\*\([^*]*\)\*\*/\1/g' -e 's/`\([^`]*\)`/\1/g' -e 's/^[*-] /  • /')
+                    [ -z "$clean_line" ] && continue
+                    tui_box_line "  $clean_line"
+                    line_count=$((line_count + 1))
+                done
+            fi
+            printf '\n'
+        done
+    else
+        # Fallback without jq - just show tag names
+        print_info "Install jq for detailed changelog view"
+        echo "$releases" | grep -oE '"tag_name":"[^"]*"' | sed 's/"tag_name":"//;s/"//' | while read -r tag; do
+            tui_box_line "  $(parse_version "$tag")"
+        done
+    fi
+
+    if [ -n "$current_ver" ]; then
+        tui_box_line "${DIM}(current: $current_ver)${NC}"
+    fi
+
+    tui_box_footer
+    printf '\n'
+}
+
+# Show changelog for all installed tools
+show_changelog_all() {
+    local count="${1:-1}"
+    for tool_def in "${TOOLS[@]}"; do
+        IFS='|' read -r name cmd _ <<< "$tool_def"
+        if command_exists "$cmd"; then
+            show_changelog "$name" "$count"
         fi
     done
 }
@@ -1086,6 +1351,8 @@ Usage:
   kitup pin <tool> <version>        Pin a tool to specific version
   kitup unpin <tool>                 Remove version pin for a tool
   kitup list-pins                   List all pinned versions
+  kitup changelog <tool>            Show recent changelog for a tool
+  kitup changelog --all             Show latest changelog for all tools
   kitup config                      Create/edit configuration file
 
 Options:
@@ -1103,17 +1370,21 @@ Options:
       --parallel N    Set number of parallel update jobs (default: 3)
       --no-parallel   Disable parallel updates
   --verbose           Enable verbose output
+      --text          Force text output (disable interactive TUI)
 
 Examples:
-  kitup --status              Check status of all tools
-  kitup --all                 Update all installed tools
-  kitup --all --install       Update all and install missing tools
-  kitup claude codex          Update specific tools
-  kitup --all --dry-run       Preview what would be updated
-  kitup --all --parallel 5    Update with 5 parallel jobs
-  kitup pin claude 0.2.45     Pin claude to version 0.2.45
-  kitup unpin claude          Remove version pin for claude
-  kitup list-pins             List all pinned versions
+  kitup                          Interactive TUI (select & update tools)
+  kitup --status                 Check status of all tools
+  kitup --all                    Update all installed tools
+  kitup --all --install          Update all and install missing tools
+  kitup claude codex             Update specific tools
+  kitup --all --dry-run          Preview what would be updated
+  kitup --all --parallel 5       Update with 5 parallel jobs
+  kitup pin claude 0.2.45        Pin claude to version 0.2.45
+  kitup unpin claude             Remove version pin for claude
+  kitup list-pins                List all pinned versions
+  kitup changelog claude         Show recent changes for claude
+  kitup changelog --all          Show latest changes for all tools
   kitup --exclude kimi,gemini --all  Update all except kimi and gemini
 
 Environment Variables:
@@ -1132,6 +1403,7 @@ EOF
 # Main function
 main() {
     local args=()
+    local FORCE_TEXT=false
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -1177,6 +1449,10 @@ main() {
                 ;;
             --verbose)
                 VERBOSE=true
+                shift
+                ;;
+            --text)
+                FORCE_TEXT=true
                 shift
                 ;;
             --parallel)
@@ -1234,6 +1510,22 @@ main() {
         exit 0
     fi
 
+    # Handle changelog command
+    if [ ${#args[@]} -gt 0 ] && [ "${args[0]}" = "changelog" ]; then
+        if [ ${#args[@]} -lt 2 ]; then
+            print_error "Usage: kitup changelog <tool>"
+            echo "  kitup changelog claude       Show recent changes"
+            echo "  kitup changelog --all        Show for all tools"
+            exit 1
+        fi
+        if [ "${args[1]}" = "--all" ]; then
+            show_changelog_all 1
+        else
+            show_changelog "${args[1]}" 3
+        fi
+        exit 0
+    fi
+
     # Handle config command
     if [ ${#args[@]} -gt 0 ] && [ "${args[0]}" = "config" ]; then
         init_config
@@ -1263,9 +1555,13 @@ main() {
 
     notify_self_update
 
-    # Show status if no arguments
+    # Show status if no arguments — use TUI if interactive terminal
     if [ ${#args[@]} -eq 0 ] && [ "$UPDATE_ALL" != true ]; then
-        show_status
+        if [ "$FORCE_TEXT" != true ] && command -v show_tui > /dev/null 2>&1 && tui_is_interactive; then
+            show_tui "$(mktemp -d)"
+        else
+            show_status
+        fi
         exit 0
     fi
 

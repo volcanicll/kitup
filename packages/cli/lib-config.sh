@@ -51,6 +51,12 @@ load_json_config() {
             exclude_tools)
                 KITUP_EXCLUDE_TOOLS="$value"
                 ;;
+            detect_new_tools)
+                [ "$value" = "false" ] && KITUP_DETECT_NEW_TOOLS=false
+                ;;
+            changelog_count)
+                [ -n "$value" ] && KITUP_CHANGELOG_COUNT="$value"
+                ;;
         esac
     done < <(grep -E '^\s*"[^"]+"\s*:' "$CONFIG_FILE_JSON" | sed 's/.*"\([^"]*\)".*:\s*\(.*\)/\1=\2/')
 }
@@ -77,6 +83,12 @@ load_yaml_config() {
                 ;;
             exclude_tools)
                 KITUP_EXCLUDE_TOOLS="$value"
+                ;;
+            detect_new_tools)
+                [ "$value" = "false" ] && KITUP_DETECT_NEW_TOOLS=false
+                ;;
+            changelog_count)
+                [ -n "$value" ] && KITUP_CHANGELOG_COUNT="$value"
                 ;;
         esac
     done < "$CONFIG_FILE"
