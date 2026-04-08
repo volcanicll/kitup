@@ -47,6 +47,10 @@ This is a monorepo containing the following packages:
 
 ## ✨ What Changed
 
+- Interactive TUI: run `kitup` with no arguments for a visual tool selector — navigate with j/k, toggle with space, update with enter
+- Structured update summary: color-coded table showing updated, skipped, and failed tools with elapsed time
+- Changelog viewer: `kitup changelog <tool>` shows recent release notes from GitHub
+- Auto-detect new tools: scans PATH for AI tools not yet supported and suggests adding them
 - Unified CLI entrypoint: installers now place a single `kitup` command in your PATH and dispatch to the platform-specific implementation internally.
 - Platform-specific bootstrap: the initial installer still uses `install.sh` on Unix-like systems and `install.ps1` on Windows, but both install the same user-facing `kitup` command.
 - PATH-aware updates: when multiple installations exist, `kitup` now prefers the binary currently selected by your shell instead of blindly updating another package-manager copy.

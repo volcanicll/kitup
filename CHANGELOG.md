@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.0.15 - 2026-04-08
+
+### Features
+- add interactive TUI: run `kitup` with no args to get a visual tool selector with j/k navigation, space to toggle, enter to update
+- add structured update summary table showing updated/skipped/failed tools with elapsed time
+- add progress indicator for parallel updates with three-state display (queued/running/done)
+- add `kitup changelog <tool>` command to view recent GitHub release notes
+- add `kitup changelog --all` to show latest changelog for all installed tools
+- add auto-detect: scan PATH for AI tools not yet supported by kitup and display them in status and TUI
+- add `--text` flag to force text output and disable interactive TUI
+- add `detect_new_tools` and `changelog_count` configuration keys
+
+### Improvements
+- update functions now collect structured results and render a summary table instead of inline log lines
+- `show_status` displays auto-detected new tools with install path information
+- non-interactive terminals (pipes, CI) automatically fall back to text output
+
+### Testing
+- add 15 new unit tests: md_to_text, tui_pad, tui_repeat, render_summary, detect_new_tools
+- total test count: 26 passing unit tests
+
 ## 0.0.14 - 2026-04-01
 
 ### Fixes
