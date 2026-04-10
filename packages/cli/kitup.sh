@@ -19,8 +19,13 @@ if [ -f "$SCRIPT_DIR/lib-tui.sh" ]; then
     source "$SCRIPT_DIR/lib-tui.sh"
 fi
 
-# Version
-VERSION="0.0.15"
+# Version — single source of truth
+# During dev: read from ../../VERSION; installed copies embed the value
+if [ -f "$SCRIPT_DIR/../../VERSION" ]; then
+    VERSION="$(cat "$SCRIPT_DIR/../../VERSION" | tr -d '[:space:]')"
+else
+    VERSION="${VERSION:-0.1.0}"
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -38,6 +43,7 @@ INSTALL_MISSING=false
 BACKUP_CONFIG=false
 VERBOSE=false
 RESTORE_CONFIG=false
+JSON_OUTPUT=false
 UPDATE_ALL=false
 PARALLEL_JOBS="${KITUP_PARALLEL_JOBS:-3}"  # Number of parallel update jobs
 SELF_UPDATE_TTL_SECONDS="${KITUP_SELF_UPDATE_TTL_SECONDS:-86400}"
@@ -575,8 +581,41 @@ notify_self_update() {
     if version_is_newer "$latest_version" "$VERSION"; then
         printf "\n"
         print_warning "A newer kitup version is available: $latest_version (current: $VERSION)"
-        print_info "Upgrade with: curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.sh | bash"
+        print_info "Upgrade with: kitup self-update"
         printf "\n"
+    fi
+}
+
+# Self-update kitup itself
+do_self_update() {
+    print_info "Checking for kitup updates..."
+    local latest_version
+    latest_version=$(get_kitup_latest_version) || true
+
+    if [ -z "$latest_version" ]; then
+        print_error "Could not determine latest kitup version"
+        return 1
+    fi
+
+    if ! version_is_newer "$latest_version" "$VERSION"; then
+        print_success "kitup is already up to date (v$VERSION)"
+        return 0
+    fi
+
+    print_info "Updating kitup from v$VERSION to v$latest_version..."
+
+    if [ "$(uname -s)" = "Darwin" ] || [ "$(uname -s)" = "Linux" ]; then
+        curl -fsSL https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.sh | bash
+    else
+        print_info "On Windows, run: irm https://raw.githubusercontent.com/volcanicll/kitup/main/packages/cli/install.ps1 | iex"
+        return 1
+    fi
+
+    local new_version
+    new_version=$(kitup --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1) || true
+    if [ -n "$new_version" ] && [ "$new_version" = "$latest_version" ]; then
+        print_success "kitup updated to v$latest_version"
+        return 0
     fi
 }
 
@@ -726,35 +765,76 @@ show_status() {
     printf "%-12s %-10s %-12s %-15s %-15s\n" "----" "---------" "------" "-------------" "--------------"
 
     local multi_install_tools=""
+    local status_tmpdir
+    status_tmpdir=$(mktemp -d)
+    trap 'rm -rf "$status_tmpdir"' RETURN
 
+    local pids=()
+    local tool_names=()
+
+    # Phase 1: launch parallel version checks
     for tool_def in "${TOOLS[@]}"; do
         IFS='|' read -r name cmd npm_pkg brew_formula pipx_pkg uv_pkg github_repo install_url <<< "$tool_def"
+        tool_names+=("$name")
 
-        local installed="No"
-        local method="-"
-        local local_ver="-"
-        local latest_ver="-"
+        (
+            local installed="No"
+            local method="-"
+            local local_ver="-"
+            local latest_ver="-"
+            local all_methods=""
+            local method_count=0
 
-        if command_exists "$cmd"; then
-            installed="Yes"
-            method=$(detect_install_method "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg")
-            local_ver=$(get_local_version "$cmd")
-            latest_ver=$(get_latest_version "$method" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$github_repo")
+            if command_exists "$cmd"; then
+                installed="Yes"
+                method=$(detect_install_method "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg")
+                local_ver=$(get_local_version "$cmd")
+                latest_ver=$(get_latest_version "$method" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$github_repo")
 
-            # Check for multiple installations
-            local all_methods
-            all_methods=$(detect_all_install_methods "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg")
-            local method_count
-            if [ -n "$all_methods" ]; then
-                method_count=$(echo "$all_methods" | tr ',' '\n' | sed '/^$/d' | wc -l | tr -d ' ')
-            else
-                method_count=0
+                all_methods=$(detect_all_install_methods "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg")
+                if [ -n "$all_methods" ]; then
+                    method_count=$(echo "$all_methods" | tr ',' '\n' | sed '/^$/d' | wc -l | tr -d ' ')
+                fi
             fi
 
-            if [ "$method_count" -gt 1 ]; then
+            printf '%s\n' "$installed" "$method" "$local_ver" "$latest_ver" "$all_methods" "$method_count" > "$status_tmpdir/$name.result"
+        ) &
+
+        pids+=($!)
+    done
+
+    # Phase 2: show progress while waiting
+    local total=${#pids[@]}
+    local finished=0
+    while [ $finished -lt $total ]; do
+        finished=0
+        for pid in "${pids[@]}"; do
+            if ! kill -0 "$pid" 2>/dev/null; then
+                finished=$((finished + 1))
+            fi
+        done
+        printf "\r  Checking %d tools... %d/%d done  " "$total" "$finished" "$total"
+        sleep 0.3
+    done
+    printf "\r%sn" "$(printf ' %.0s' {1..50})"
+
+    # Wait for all to finish
+    for pid in "${pids[@]}"; do
+        wait "$pid" 2>/dev/null || true
+    done
+
+    # Phase 3: render results in order
+    for name in "${tool_names[@]}"; do
+        local result_file="$status_tmpdir/$name.result"
+        if [ -f "$result_file" ]; then
+            IFS=$'\n' read -r installed method local_ver latest_ver all_methods method_count < <(cat "$result_file") || true
+
+            if [ "${method_count:-0}" -gt 1 ]; then
                 method="${method}*"
                 multi_install_tools="$multi_install_tools\n  $name: $all_methods"
             fi
+        else
+            local installed="No" method="-" local_ver="-" latest_ver="-"
         fi
 
         printf "%-12s %-10s %-12s %-15s %-15s\n" "$name" "$installed" "$method" "$local_ver" "$latest_ver"
@@ -790,6 +870,60 @@ show_status() {
             printf "\n"
         fi
     fi
+}
+
+# Show status as JSON (--json flag)
+show_status_json() {
+    local status_tmpdir
+    status_tmpdir=$(mktemp -d)
+    trap 'rm -rf "$status_tmpdir"' RETURN
+
+    local pids=()
+    local tool_names=()
+
+    for tool_def in "${TOOLS[@]}"; do
+        IFS='|' read -r name cmd npm_pkg brew_formula pipx_pkg uv_pkg github_repo install_url <<< "$tool_def"
+        tool_names+=("$name")
+
+        (
+            local installed=false
+            local method=""
+            local local_ver=""
+            local latest_ver=""
+
+            if command_exists "$cmd"; then
+                installed=true
+                method=$(detect_install_method "$cmd" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg")
+                local_ver=$(get_local_version "$cmd")
+                latest_ver=$(get_latest_version "$method" "$npm_pkg" "$brew_formula" "$pipx_pkg" "$uv_pkg" "$github_repo")
+            fi
+
+            printf '%s\t%s\t%s\t%s\n' "$installed" "$method" "$local_ver" "$latest_ver" > "$status_tmpdir/$name.json"
+        ) &
+
+        pids+=($!)
+    done
+
+    for pid in "${pids[@]}"; do
+        wait "$pid" 2>/dev/null || true
+    done
+
+    # Build JSON output
+    printf '{"kitup_version":"%s","tools":[' "$VERSION"
+    local first=true
+    for name in "${tool_names[@]}"; do
+        local jfile="$status_tmpdir/$name.json"
+        if [ -f "$jfile" ]; then
+            IFS=$'\t' read -r installed method local_ver latest_ver < <(cat "$jfile") || true
+        else
+            local installed=false method="" local_ver="" latest_ver=""
+        fi
+
+        [ "$first" = true ] && first=false || printf ","
+        printf '{"name":"%s","installed":%s,"method":"%s","local_version":"%s","latest_version":"%s"}' \
+            "$name" "$installed" "$method" "$local_ver" "$latest_ver"
+    done
+    printf ']}\n'
 }
 
 # List all supported tools
@@ -1354,6 +1488,7 @@ Usage:
   kitup changelog <tool>            Show recent changelog for a tool
   kitup changelog --all             Show latest changelog for all tools
   kitup config                      Create/edit configuration file
+  kitup self-update                 Update kitup itself to the latest version
 
 Options:
   -h, --help          Show this help message
@@ -1371,6 +1506,7 @@ Options:
       --no-parallel   Disable parallel updates
   --verbose           Enable verbose output
       --text          Force text output (disable interactive TUI)
+      --json          Output status in JSON format (implies --text)
 
 Examples:
   kitup                          Interactive TUI (select & update tools)
@@ -1420,7 +1556,11 @@ main() {
                 exit 0
                 ;;
             -s|--status)
-                show_status
+                if [ "$JSON_OUTPUT" = true ]; then
+                    show_status_json
+                else
+                    show_status
+                fi
                 exit 0
                 ;;
             -a|--all)
@@ -1452,6 +1592,11 @@ main() {
                 shift
                 ;;
             --text)
+                FORCE_TEXT=true
+                shift
+                ;;
+            --json)
+                JSON_OUTPUT=true
                 FORCE_TEXT=true
                 shift
                 ;;
@@ -1531,6 +1676,12 @@ main() {
         init_config
         print_info "Configuration file: $CONFIG_FILE_JSON"
         exit 0
+    fi
+
+    # Handle self-update command
+    if [ ${#args[@]} -gt 0 ] && [ "${args[0]}" = "self-update" ]; then
+        do_self_update
+        exit $?
     fi
 
     # Handle restore

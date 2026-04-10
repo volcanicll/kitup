@@ -7,7 +7,7 @@
 $ErrorActionPreference = "Stop"
 
 # Version - should match kitup.ps1
-$script:INSTALLER_VERSION = "0.0.12"
+$script:INSTALLER_VERSION = if ($env:INSTALLER_VERSION) { $env:INSTALLER_VERSION } else { "0.1.0" }
 
 # Configuration
 $RepoOwner = $env:REPO_OWNER -or "volcanicll"

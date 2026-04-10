@@ -427,8 +427,10 @@ show_tui() {
 
         # Count selected
         local sel_count=0
+        local idx=0
         for s in "${tool_selected[@]}"; do
-            [ "$s" = "yes" ] && [ "${tool_installed[0]}" != "" ] && sel_count=$((sel_count + 1))
+            [ "$s" = "yes" ] && [ "${tool_installed[$idx]}" != "" ] && sel_count=$((sel_count + 1))
+            idx=$((idx + 1))
         done
 
         tui_box_line "  ${BOLD}[$sel_count selected]${NC}$(tui_center "Press [Enter] to update" $((width - 40)))"

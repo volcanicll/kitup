@@ -7,8 +7,8 @@
 
 set -e
 
-# Version - should match kitup.sh
-INSTALLER_VERSION="0.0.14"
+# Version - read from VERSION file in repo root, fallback for standalone use
+INSTALLER_VERSION="${INSTALLER_VERSION:-0.1.0}"
 
 # Colors for output
 RED='\033[0;31m'

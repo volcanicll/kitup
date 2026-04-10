@@ -7,7 +7,7 @@
 $ErrorActionPreference = "Stop"
 
 # Version
-$script:VERSION = "0.0.12"
+$script:VERSION = if ($env:VERSION) { $env:VERSION } else { "0.1.0" }
 
 # Configuration
 $script:DRY_RUN = $false

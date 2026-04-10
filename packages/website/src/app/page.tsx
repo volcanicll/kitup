@@ -409,7 +409,7 @@ export default function Home() {
           <ScrollReveal>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card mb-8">
               <span className="status-dot status-dot-online" />
-              <span className="text-sm text-white/70">v0.0.12 Now Available</span>
+              <span className="text-sm text-white/70">v0.1.0 Now Available</span>
             </div>
           </ScrollReveal>
 
