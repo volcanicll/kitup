@@ -1,0 +1,8 @@
+pub mod changelog;
+pub mod completions;
+pub mod config_cmd;
+pub mod doctor;
+pub mod pin_cmd;
+pub mod self_update_cmd;
+pub mod status;
+pub mod update;
