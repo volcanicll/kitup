@@ -124,37 +124,37 @@ const features = [
   {
     icon: Globe,
     title: "Cross Platform",
-    description: "Works across macOS, Linux, and Windows with platform-specific implementations behind one entry command.",
+    description: "Native binary for macOS (Apple Silicon + Intel), Linux, and Windows. Zero runtime dependencies.",
   },
   {
     icon: Package,
     title: "Native Sources",
-    description: "Supports npm, Homebrew, pipx, uv, Chocolatey, Scoop, and official installers.",
+    description: "Supports npm, Homebrew, pipx, uv, and official standalone installers.",
   },
   {
     icon: Cpu,
-    title: "Parallel Updates",
-    description: "Update multiple tools simultaneously with configurable parallel jobs for faster updates.",
+    title: "Interactive TUI",
+    description: "Multi-panel dashboard with keyboard navigation, search, and real-time version detection.",
   },
   {
     icon: GitBranch,
-    title: "Version Pinning",
-    description: "Pin specific versions of tools to prevent unwanted updates while keeping others current.",
+    title: "Provider Management",
+    description: "Switch API providers for Claude, Codex, and Gemini with one command. Circuit breaker failover built in.",
   },
 ];
 
 const capabilityCards = [
   {
-    title: "Stable Entry Command",
-    body: "Installers place one `kitup` entry command in PATH and dispatch to the right implementation for the host platform.",
+    title: "Written in Rust",
+    body: "v0.2.0 is a complete Rust rewrite — single ~9MB binary, zero dependencies, blazing fast.",
   },
   {
-    title: "Windows Package Managers",
-    body: "The PowerShell implementation now supports Chocolatey and Scoop for tools that ship native Windows packages.",
+    title: "Health Diagnostics",
+    body: "Built-in doctor command checks network connectivity, detects multi-installs, and auto-fixes configuration issues.",
   },
   {
-    title: "Regression Backed",
-    body: "The CLI package includes repeatable regression tests for PATH priority, restore flow, and entrypoint dispatch.",
+    title: "Well Tested",
+    body: "21 unit tests across 5 crates. Full test suite passes on macOS and Linux in CI.",
   },
 ];
 
@@ -409,7 +409,7 @@ export default function Home() {
           <ScrollReveal>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card mb-8">
               <span className="status-dot status-dot-online" />
-              <span className="text-sm text-white/70">v0.1.0 Now Available</span>
+              <span className="text-sm text-white/70">v0.2.0 — Rust Rewrite</span>
             </div>
           </ScrollReveal>
 

@@ -11,6 +11,9 @@ path = "src/main.rs"
 
 [dependencies]
 kitup-core = { path = "../kitup-core" }
+kitup-tui = { path = "../kitup-tui" }
+kitup-provider = { path = "../kitup-provider" }
+kitup-health = { path = "../kitup-health" }
 clap = { workspace = true }
 clap_complete = { workspace = true }
 tokio = { workspace = true }
@@ -26,6 +29,7 @@ reqwest = { workspace = true }
 directories = { workspace = true }
 chrono = { workspace = true }
 which = { workspace = true }
+async-trait = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = "2"

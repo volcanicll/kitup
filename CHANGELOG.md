@@ -1,5 +1,66 @@
 # Changelog
 
+## 0.2.0 - 2026-06-09
+
+### Breaking Changes
+- **Complete Rust rewrite**: kitup is now a native binary (~9MB, zero dependencies)
+- Old Shell/PowerShell scripts are no longer the main implementation
+- Configuration migrated to v2 format (auto-migrated from v1)
+
+### New Features
+
+**Interactive TUI (Phase 2)**
+- Multi-panel ratatui dashboard with tool list, detail panel, and status bar
+- Keyboard navigation: j/k, Space, a, u, Enter, Tab, /, ?
+- Tab-based navigation: Tools, Providers, Health
+- Async background version detection with live UI updates
+- Search/filter tools with `/` key
+- Help popup with `?`
+
+**Provider Management (Phase 3)**
+- `kitup provider list` — list all configured API providers
+- `kitup provider add --name --api-base` — add a provider
+- `kitup provider switch <name>` — switch API endpoint for Claude/Codex/Gemini
+- `kitup provider test` — test provider connectivity and latency
+- `kitup provider remove <name>` — remove a provider
+- Circuit breaker failover with configurable thresholds
+- Configuration file adapters for Claude, Codex, and Gemini
+- Automatic config backup before switching
+- JSON import/export for provider configs
+
+**Health Checks (Phase 4)**
+- `kitup doctor` — run full system diagnostics
+- `kitup doctor --fix` — auto-fix configurable issues
+- Network connectivity testing (npm registry, GitHub API, PyPI)
+- Multi-install conflict detection with cleanup suggestions
+- Batch endpoint latency measurement with sorted results
+- Package manager availability checks
+
+**Core Improvements**
+- 12 AI tools supported (Claude, OpenCode, Codex, Gemini, Kimi, Cline, Qwen, Goose, Aider, Cursor, Windsurf, Tabby)
+- 5 package manager adapters: npm, Homebrew, pipx, uv, standalone
+- Parallel async updates with real-time progress bars (indicatif)
+- Colored table output (comfy-table + owo-colors)
+- JSON output mode (`--json`) for scripting
+- Version pinning (`kitup pin/unpin`)
+- Changelog viewer (`kitup changelog`)
+- Shell completions for bash, zsh, fish, elvish (`kitup completions`)
+- Self-update from GitHub releases
+- v1 config auto-migration to v2
+
+### Architecture
+- Cargo workspace with 5 crates: kitup-core, kitup-cli, kitup-tui, kitup-provider, kitup-health
+- ~7,300 lines of Rust code
+- 21 unit tests
+
+## 0.1.0 - 2026-04-10
+
+### Features
+- unified version across monorepo
+- self-update mechanism
+- parallel status checks
+- `--json` output
+
 ## 0.0.15 - 2026-04-08
 
 ### Features

@@ -7,7 +7,6 @@ use clap::Parser;
 fn main() -> anyhow::Result<()> {
     let cli = args::Cli::parse();
 
-    // 初始化 tracing
     if cli.verbose {
         tracing_subscriber::fmt()
             .with_env_filter("kitup=debug")
@@ -19,6 +18,12 @@ fn main() -> anyhow::Result<()> {
     }
 
     match cli.command {
+        // TUI 模式
+        Some(args::Commands::Tui) | None => {
+            run_tui()?;
+        }
+
+        // CLI 子命令
         Some(args::Commands::Status { json }) => {
             commands::status::run(json)?;
         }
@@ -44,6 +49,9 @@ fn main() -> anyhow::Result<()> {
         Some(args::Commands::Doctor { fix, verbose: doc_verbose }) => {
             commands::doctor::run(fix, doc_verbose || cli.verbose)?;
         }
+        Some(args::Commands::Provider { action }) => {
+            commands::provider::run(action)?;
+        }
         Some(args::Commands::Config) => {
             commands::config_cmd::run()?;
         }
@@ -53,14 +61,15 @@ fn main() -> anyhow::Result<()> {
         Some(args::Commands::SelfUpdate) => {
             commands::self_update_cmd::run()?;
         }
-        None => {
-            println!("kitup v{} — AI coding assistant updater", env!("CARGO_PKG_VERSION"));
-            println!();
-            println!("Usage: kitup <COMMAND>");
-            println!();
-            println!("Run `kitup --help` for available commands.");
-        }
     }
 
     Ok(())
+}
+
+fn run_tui() -> anyhow::Result<()> {
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(async {
+        // 在 tokio runtime 中运行 TUI（后台检测需要 async）
+        kitup_tui::run()
+    })
 }

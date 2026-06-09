@@ -8,76 +8,101 @@ pub struct Cli {
     #[arg(short, long)]
     pub verbose: bool,
 
-    /// Subcommand
     #[command(subcommand)]
     pub command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Open interactive TUI dashboard (default when no command given)
+    Tui,
     /// Check status of all tools
     Status {
-        /// Output in JSON format
         #[arg(long)]
         json: bool,
     },
     /// Update tools
     Update {
-        /// Tool names to update
         tools: Vec<String>,
-        /// Update all installed tools
         #[arg(short, long)]
         all: bool,
-        /// Also install missing tools
         #[arg(short, long)]
         install: bool,
-        /// Preview without making changes
         #[arg(short, long)]
         dry_run: bool,
-        /// Force update even if up to date
         #[arg(short, long)]
         force: bool,
-        /// Number of parallel jobs
         #[arg(short, long, default_value = "3")]
         parallel: usize,
     },
     /// Pin a tool to a specific version
     Pin {
-        /// Tool name
         tool: String,
-        /// Version to pin
         version: String,
     },
     /// Remove version pin for a tool
     Unpin {
-        /// Tool name
         tool: String,
     },
     /// Show changelog for a tool
     Changelog {
-        /// Tool name (use --all for all tools)
         tool: Option<String>,
-        /// Show changelog for all tools
         #[arg(long)]
         all: bool,
     },
     /// Run diagnostics
     Doctor {
-        /// Auto-fix issues
         #[arg(long)]
         fix: bool,
-        /// Verbose diagnostics
         #[arg(short, long)]
         verbose: bool,
     },
-    /// Show or manage configuration
+    /// Manage API providers
+    Provider {
+        #[command(subcommand)]
+        action: ProviderAction,
+    },
+    /// Show configuration
     Config,
     /// Generate shell completions
     Completions {
-        /// Shell type
         shell: clap_complete::Shell,
     },
     /// Update kitup itself
     #[command(name = "self-update")]
     SelfUpdate,
+}
+
+#[derive(Subcommand)]
+pub enum ProviderAction {
+    /// List all providers
+    List,
+    /// Switch to a provider
+    Switch {
+        /// Provider name
+        name: String,
+        /// Tool to switch (default: all)
+        #[arg(short, long)]
+        tool: Option<String>,
+    },
+    /// Test provider connectivity and latency
+    Test {
+        /// Provider name (omit to test all)
+        name: Option<String>,
+    },
+    /// Add a new provider
+    Add {
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        api_base: String,
+        #[arg(long)]
+        api_key_env: Option<String>,
+        #[arg(long, default_value = "1")]
+        priority: u32,
+    },
+    /// Remove a provider
+    Remove {
+        name: String,
+    },
 }
