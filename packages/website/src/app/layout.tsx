@@ -13,13 +13,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "kitup - AI Coding Assistant Updater",
-  description: "Update AI coding assistants with one command while preserving the active package manager on your PATH across macOS, Linux, and Windows.",
-  keywords: ["AI", "CLI", "developer tools", "Claude Code", "OpenCode", "Codex", "Gemini CLI", "Goose", "Aider", "Chocolatey", "Scoop"],
+  title: "kitup — Update All AI Coding Assistants",
+  description:
+    "One command to update Claude Code, Codex, Gemini CLI, and 9 more AI tools. PATH-aware, cross-platform, zero dependencies.",
+  keywords: [
+    "AI",
+    "CLI",
+    "developer tools",
+    "Claude Code",
+    "Codex",
+    "Gemini CLI",
+    "updater",
+    "package manager",
+  ],
   authors: [{ name: "volcanicll" }],
   openGraph: {
-    title: "kitup - AI Coding Assistant Updater",
-    description: "A path-aware updater for AI coding assistants across macOS, Linux, and Windows.",
+    title: "kitup — Update All AI Coding Assistants",
+    description:
+      "One command to update 12 AI coding assistants. PATH-aware, cross-platform, zero dependencies.",
     type: "website",
   },
 };
@@ -34,13 +45,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <div className="gradient-bg" />
-        <div className="grid-pattern" />
-        <div className="noise" />
-        <div className="orb orb-1" />
-        <div className="orb orb-2" />
-        <div className="orb orb-3" />
-        <div className="orb orb-4" />
         {children}
       </body>
     </html>
