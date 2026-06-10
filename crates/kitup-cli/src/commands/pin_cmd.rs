@@ -1,7 +1,6 @@
 //! pin/unpin 子命令
 
 use crate::output;
-use anyhow::Result;
 use kitup_core::pin::PinnedVersions;
 use kitup_core::tool::Tool;
 use owo_colors::OwoColorize;

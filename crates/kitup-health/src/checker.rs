@@ -1,7 +1,6 @@
 //! 健康检查引擎
 
 use crate::{CheckCategory, CheckResult, CheckStatus, LatencyResult};
-use anyhow::Result;
 
 /// 端点健康检查
 pub async fn check_endpoint(

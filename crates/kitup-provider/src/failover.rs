@@ -62,7 +62,7 @@ impl CircuitBreaker {
     }
 
     /// 记录失败
-    pub fn record_failure(&mut self, threshold: u32, reset_timeout: Duration) {
+    pub fn record_failure(&mut self, threshold: u32, _reset_timeout: Duration) {
         self.consecutive_failures += 1;
         self.last_failure = Some(SystemTime::now());
 

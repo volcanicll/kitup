@@ -10,7 +10,6 @@ pub mod symbols {
     pub const ARROW_UP: &str = "↑";
     pub const BULLET: &str = "●";
     pub const PIN: &str = "⚑";
-    pub const WARNING: &str = "⚡";
     pub const SPINNER: &str = "⟳";
 }
 

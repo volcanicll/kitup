@@ -2,7 +2,6 @@
 //!
 //! API 连通性测试、延迟测量、自动诊断修复
 
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 pub mod checker;

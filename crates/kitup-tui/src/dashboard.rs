@@ -42,21 +42,28 @@ pub fn render(f: &mut Frame, app: &App) {
 
 fn render_title(f: &mut Frame, app: &App, area: Rect) {
     let version = env!("CARGO_PKG_VERSION");
-    let active = match app.tab {
+    let _active = match app.tab {
         Tab::Tools => 0,
         Tab::Providers => 1,
         Tab::Health => 2,
     };
 
-    let tabs = Tabs::new(vec!["1:Tools", "2:Providers", "3:Health"])
-        .select(active)
-        .style(Style::default().fg(Color::Cyan))
-        .highlight_style(Style::default().bold());
+    // 标签页指示器（后续可扩展为交互式 Tabs）
+    let tab_indicator = match app.tab {
+        Tab::Tools => "1:Tools",
+        Tab::Providers => "2:Providers",
+        Tab::Health => "3:Health",
+    };
 
     let title = Line::from(vec![
         Span::styled(
             format!(" kitup v{} ", version),
             Style::default().bold().fg(Color::Cyan),
+        ),
+        Span::raw("  "),
+        Span::styled(
+            format!("[{}]", tab_indicator),
+            Style::default().fg(Color::White),
         ),
         Span::raw("  "),
         Span::styled("[q]uit [?]help", Style::default().fg(Color::DarkGray)),
@@ -83,6 +90,42 @@ fn render_tools_tab(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_tools_list(f: &mut Frame, app: &App, area: Rect) {
+    // 检测中
+    if app.detecting {
+        let lines = vec![
+            Line::from(""),
+            Line::from(Span::styled(
+                "  ⟳ Detecting installed tools...",
+                Style::default().fg(Color::Yellow),
+            )),
+        ];
+        let paragraph = Paragraph::new(lines).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Tools "),
+        );
+        f.render_widget(paragraph, area);
+        return;
+    }
+
+    // 无工具
+    if app.tools.is_empty() {
+        let lines = vec![
+            Line::from(""),
+            Line::from(Span::styled(
+                "  No tools detected on this system.",
+                Style::default().fg(Color::DarkGray),
+            )),
+        ];
+        let paragraph = Paragraph::new(lines).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Tools "),
+        );
+        f.render_widget(paragraph, area);
+        return;
+    }
+
     let items: Vec<ListItem> = app
         .tools
         .iter()
@@ -90,8 +133,6 @@ fn render_tools_list(f: &mut Frame, app: &App, area: Rect) {
         .map(|(i, tool)| {
             let (icon, status, style) = if tool.loading {
                 ("⟳", "loading...", Style::default().fg(Color::DarkGray))
-            } else if !tool.installed {
-                ("○", "not installed", Style::default().fg(Color::DarkGray))
             } else if tool.needs_update {
                 let sel = if app.selected[i] { "◉" } else { "○" };
                 (sel, "update available", Style::default().fg(Color::Yellow))
@@ -207,7 +248,7 @@ fn render_detail(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(paragraph, area);
 }
 
-fn render_providers_tab(f: &mut Frame, app: &App, area: Rect) {
+fn render_providers_tab(f: &mut Frame, _app: &App, area: Rect) {
     let lines = vec![
         Line::from(""),
         Line::from(Span::styled(
@@ -229,7 +270,7 @@ fn render_providers_tab(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(paragraph, area);
 }
 
-fn render_health_tab(f: &mut Frame, app: &App, area: Rect) {
+fn render_health_tab(f: &mut Frame, _app: &App, area: Rect) {
     let lines = vec![
         Line::from(""),
         Line::from(Span::styled(
@@ -251,7 +292,7 @@ fn render_health_tab(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_actions(f: &mut Frame, app: &App, area: Rect) {
-    let (installed, updates, selected) = app.stats();
+    let (_, _, selected) = app.stats();
 
     let actions = vec![
         Span::styled(
@@ -277,7 +318,7 @@ fn render_actions(f: &mut Frame, app: &App, area: Rect) {
 fn render_status(f: &mut Frame, app: &App, area: Rect) {
     let (installed, updates, selected) = app.stats();
 
-    let status = Line::from(vec![
+    let mut spans = vec![
         Span::styled(
             format!(" ● {} installed", installed),
             Style::default().fg(Color::Green),
@@ -285,21 +326,44 @@ fn render_status(f: &mut Frame, app: &App, area: Rect) {
         Span::raw("  "),
         Span::styled(
             format!("↑ {} updates", updates),
-            if updates > 0 { Style::default().fg(Color::Yellow) } else { Style::default().fg(Color::DarkGray) },
+            if updates > 0 {
+                Style::default().fg(Color::Yellow)
+            } else {
+                Style::default().fg(Color::DarkGray)
+            },
         ),
         Span::raw("  "),
         Span::styled(
             format!("◉ {} selected", selected),
-            if selected > 0 { Style::default().fg(Color::Cyan) } else { Style::default().fg(Color::DarkGray) },
+            if selected > 0 {
+                Style::default().fg(Color::Cyan)
+            } else {
+                Style::default().fg(Color::DarkGray)
+            },
         ),
-        Span::raw("  "),
-        Span::styled(
-            if app.searching { format!("search: {}", app.search_query) } else { String::new() },
-            Style::default().fg(Color::Magenta),
-        ),
-    ]);
+    ];
 
-    let paragraph = Paragraph::new(status);
+    if app.updating {
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            format!("⟳ updating... {}", app.update_progress),
+            Style::default().fg(Color::Yellow),
+        ));
+    } else if !app.status_message.is_empty() {
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            app.status_message.clone(),
+            Style::default().fg(Color::Magenta),
+        ));
+    } else if app.searching {
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            format!("search: {}", app.search_query),
+            Style::default().fg(Color::Magenta),
+        ));
+    }
+
+    let paragraph = Paragraph::new(Line::from(spans));
     f.render_widget(paragraph, area);
 }
 

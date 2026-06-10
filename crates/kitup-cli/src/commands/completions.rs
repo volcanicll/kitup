@@ -1,6 +1,5 @@
 //! completions 子命令
 
-use anyhow::Result;
 use clap::CommandFactory;
 
 pub fn run(shell: clap_complete::Shell) -> anyhow::Result<()> {

@@ -14,9 +14,10 @@ pub struct StandaloneAdapter;
 impl StandaloneAdapter {
     pub fn is_path_match_static(tool_path: &PathBuf) -> bool {
         let path_str = tool_path.to_string_lossy();
+        // 只匹配常见的 standalone 安装路径
+        // 排除 Homebrew (/opt/homebrew, /usr/local/Cellar) 和 npm (node_modules) 路径
         path_str.starts_with("/usr/local/bin/")
             || path_str.contains("/.local/bin/")
-            || path_str.contains("/bin/")
     }
 
     pub fn is_path_match(&self, tool_path: &PathBuf) -> bool {

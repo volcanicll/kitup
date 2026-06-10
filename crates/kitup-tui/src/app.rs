@@ -1,8 +1,8 @@
 //! TUI 应用状态管理
 
-use kitup_core::installer::{detect_all_install_methods, detect_install_method, ToolStatus};
+use kitup_core::installer::{detect_all_install_methods, detect_install_method};
 use kitup_core::pin::PinnedVersions;
-use kitup_core::tool::TOOL_REGISTRY;
+use kitup_core::tool::{Tool, TOOL_REGISTRY};
 use kitup_core::version::VersionCache;
 use semver::Version;
 use std::path::PathBuf;
@@ -13,6 +13,27 @@ pub enum Tab {
     Tools,
     Providers,
     Health,
+}
+
+/// 工具更新进度事件
+#[derive(Debug)]
+pub enum UpdateEvent {
+    /// 单个工具更新完成（成功/失败/跳过），附带刷新后的状态
+    ToolDone {
+        name: String,
+        result: ToolUpdateResult,
+        refreshed: ToolUpdate,
+    },
+    /// 全部更新完成
+    Done { updated: usize, failed: usize },
+}
+
+/// 单个工具的更新结果
+#[derive(Debug)]
+pub enum ToolUpdateResult {
+    Updated,
+    Failed(String),
+    Skipped(String),
 }
 
 /// 工具版本异步更新消息
@@ -34,6 +55,7 @@ pub struct App {
     pub tools: Vec<ToolInfo>,
     pub cursor: usize,
     pub selected: Vec<bool>,
+    pub detecting: bool,
     pub show_help: bool,
     pub show_detail: bool,
     pub searching: bool,
@@ -60,29 +82,12 @@ pub struct ToolInfo {
 
 impl App {
     pub fn new() -> Self {
-        let mut tools = Vec::new();
-        let mut selected = Vec::new();
-
-        for tool in TOOL_REGISTRY {
-            tools.push(ToolInfo {
-                name: tool.name.to_string(),
-                installed: false,
-                local_version: None,
-                latest_version: None,
-                method: None,
-                path: None,
-                needs_update: false,
-                multiple_installs: false,
-                loading: true,
-            });
-            selected.push(false);
-        }
-
         Self {
             tab: Tab::Tools,
-            tools,
+            tools: Vec::new(),
             cursor: 0,
-            selected,
+            selected: Vec::new(),
+            detecting: true,
             show_help: false,
             show_detail: false,
             searching: false,
@@ -90,7 +95,7 @@ impl App {
             updating: false,
             update_progress: String::new(),
             should_quit: false,
-            status_message: String::new(),
+            status_message: "Detecting tools...".to_string(),
         }
     }
 
@@ -101,7 +106,7 @@ impl App {
     }
 
     pub fn move_down(&mut self) {
-        if self.cursor < self.tools.len() - 1 {
+        if !self.tools.is_empty() && self.cursor < self.tools.len() - 1 {
             self.cursor += 1;
         }
     }
@@ -128,7 +133,13 @@ impl App {
         }
     }
 
-    pub fn start_update(&mut self) {
+    /// 准备更新选中的工具，返回待更新工具名列表
+    pub fn prepare_update(&mut self) -> Option<Vec<String>> {
+        if self.updating {
+            self.status_message = "Update already in progress".to_string();
+            return None;
+        }
+
         let selected_tools: Vec<_> = self
             .tools
             .iter()
@@ -138,12 +149,53 @@ impl App {
             .collect();
 
         if selected_tools.is_empty() {
-            self.status_message = "No tools selected".to_string();
-            return;
+            self.status_message =
+                "No tools selected — use Space on installed tools first".to_string();
+            return None;
         }
 
-        self.status_message = format!("Updating {} tools...", selected_tools.len());
-        // 实际更新由外部调度
+        self.updating = true;
+        self.update_progress = format!("Updating {} tool(s)...", selected_tools.len());
+        self.status_message = self.update_progress.clone();
+        Some(selected_tools)
+    }
+
+    pub fn apply_update_event(&mut self, event: UpdateEvent) {
+        match event {
+            UpdateEvent::ToolDone { name, result, refreshed } => {
+                // 刷新该工具的显示状态
+                self.apply_update(refreshed);
+                // 更新进度文字
+                match result {
+                    ToolUpdateResult::Updated => {
+                        self.update_progress = format!("✓ {} updated", name);
+                    }
+                    ToolUpdateResult::Failed(e) => {
+                        self.update_progress = format!("✗ {} failed: {}", name, e);
+                    }
+                    ToolUpdateResult::Skipped(reason) => {
+                        self.update_progress = format!("- {}: {}", name, reason);
+                    }
+                }
+                self.status_message = self.update_progress.clone();
+            }
+            UpdateEvent::Done { updated, failed } => {
+                self.updating = false;
+                self.update_progress.clear();
+                if failed > 0 {
+                    self.status_message =
+                        format!("Done: {} updated, {} failed", updated, failed);
+                } else if updated > 0 {
+                    self.status_message = format!("Done: {} tool(s) updated", updated);
+                } else {
+                    self.status_message = "All tools are up to date".to_string();
+                }
+                // 清除选择状态
+                for s in &mut self.selected {
+                    *s = false;
+                }
+            }
+        }
     }
 
     pub fn show_detail(&mut self) {
@@ -192,8 +244,11 @@ impl App {
         self.should_quit
     }
 
+    /// 应用检测/刷新结果
     pub fn apply_update(&mut self, update: ToolUpdate) {
-        if let Some(tool) = self.tools.iter_mut().find(|t| t.name == update.tool_name) {
+        if let Some(idx) = self.tools.iter().position(|t| t.name == update.tool_name) {
+            // 已在列表中 → 刷新数据（更新后的重新检测）
+            let tool = &mut self.tools[idx];
             tool.installed = update.installed;
             tool.local_version = update.local_version;
             tool.latest_version = update.latest_version;
@@ -202,6 +257,20 @@ impl App {
             tool.needs_update = update.needs_update;
             tool.multiple_installs = update.multiple_installs;
             tool.loading = false;
+        } else if update.installed {
+            // 新检测到的已安装工具 → 追加到列表
+            self.tools.push(ToolInfo {
+                name: update.tool_name,
+                installed: true,
+                local_version: update.local_version,
+                latest_version: update.latest_version,
+                method: update.method,
+                path: update.path,
+                needs_update: update.needs_update,
+                multiple_installs: update.multiple_installs,
+                loading: false,
+            });
+            self.selected.push(false);
         }
     }
 
@@ -213,7 +282,7 @@ impl App {
         self.tools
             .iter()
             .enumerate()
-            .filter(|(_, t)| t.name.contains(&self.search_query.to_lowercase()))
+            .filter(|(_, t)| t.name.to_lowercase().contains(&self.search_query.to_lowercase()))
             .map(|(i, _)| i)
             .collect()
     }
@@ -232,68 +301,146 @@ impl App {
     }
 }
 
-/// 异步检测所有工具版本
+/// 异步并行检测所有工具版本（只发送已安装的工具）
 pub async fn detect_all_tools(tx: std::sync::mpsc::Sender<ToolUpdate>) {
     let cache = VersionCache::new().ok();
     let pins = PinnedVersions::load().ok();
 
-    for tool in TOOL_REGISTRY {
-        let tool_name = tool.name.to_string();
-        let tool_path = which::which(tool.command).ok();
-        let installed = tool_path.is_some();
+    // 并行检测所有工具，每个工具一个 tokio 任务
+    let handles: Vec<_> = TOOL_REGISTRY
+        .iter()
+        .map(|tool| {
+            let tx = tx.clone();
+            let cache = cache.clone();
+            let pins = pins.clone();
+            tokio::spawn(async move {
+                let update = detect_single_tool(tool, &cache, &pins).await;
+                if update.installed {
+                    let _ = tx.send(update);
+                }
+            })
+        })
+        .collect();
 
-        let (method_str, needs_update, local_ver, latest_ver, multi) = if installed {
-            let method_info = detect_install_method(tool).await;
-            let method_str = method_info
-                .as_ref()
-                .map(|(m, _)| m.to_string());
+    // 等待所有检测完成
+    for handle in handles {
+        let _ = handle.await;
+    }
+}
 
-            let local_ver = if let Some((_, ref adapter)) = method_info {
-                adapter.local_version(tool).await.unwrap_or(None)
-            } else {
-                None
-            };
+/// 更新选中的工具
+pub async fn update_tools(tool_names: Vec<String>, tx: std::sync::mpsc::Sender<UpdateEvent>) {
+    let pins = PinnedVersions::load().ok();
 
-            let latest_ver = if let Some((_, ref adapter)) = method_info {
-                if let Some(ref cache) = cache {
-                    if let Some(v) = cache.get(&tool_name, adapter.name()) {
-                        Some(v)
-                    } else {
-                        adapter.latest_version(tool).await.unwrap_or(None)
-                    }
+    let mut updated = 0;
+    let mut failed = 0;
+
+    for name in tool_names {
+        let Some(tool) = Tool::find_by_name(&name) else {
+            continue;
+        };
+
+        // 检查 pinned
+        if PinnedVersions::get_pinned(&name).ok().flatten().is_some() {
+            let refresh = detect_single_tool(tool, &None, &pins).await;
+            let _ = tx.send(UpdateEvent::ToolDone {
+                name,
+                result: ToolUpdateResult::Skipped("pinned".into()),
+                refreshed: refresh,
+            });
+            continue;
+        }
+
+        // 获取安装方式对应的 adapter
+        let method_info = detect_install_method(tool).await;
+        let Some((_, adapter)) = method_info else {
+            continue;
+        };
+
+        // 直接执行更新（不做版本比较，交给包管理器判断）
+        let result = match adapter.update(tool).await {
+            Ok(()) => {
+                updated += 1;
+                ToolUpdateResult::Updated
+            }
+            Err(e) => {
+                failed += 1;
+                ToolUpdateResult::Failed(e.to_string())
+            }
+        };
+
+        // 更新后不使用缓存，强制重新检测
+        let refresh = detect_single_tool(tool, &None, &pins).await;
+        let _ = tx.send(UpdateEvent::ToolDone {
+            name,
+            result,
+            refreshed: refresh,
+        });
+    }
+
+    let _ = tx.send(UpdateEvent::Done { updated, failed });
+}
+
+async fn detect_single_tool(
+    tool: &Tool,
+    cache: &Option<VersionCache>,
+    pins: &Option<PinnedVersions>,
+) -> ToolUpdate {
+    let tool_name = tool.name.to_string();
+    let tool_path = which::which(tool.command).ok();
+    let installed = tool_path.is_some();
+
+    let (method_str, needs_update, local_ver, latest_ver, multi) = if installed {
+        let method_info = detect_install_method(tool).await;
+        let method_str = method_info.as_ref().map(|(m, _)| m.to_string());
+
+        let local_ver = if let Some((_, ref adapter)) = method_info {
+            adapter.local_version(tool).await.unwrap_or(None)
+        } else {
+            None
+        };
+
+        let latest_ver = if let Some((_, ref adapter)) = method_info {
+            if let Some(ref cache) = cache {
+                if let Some(v) = cache.get(&tool_name, adapter.name()) {
+                    Some(v)
                 } else {
                     adapter.latest_version(tool).await.unwrap_or(None)
                 }
             } else {
-                None
-            };
-
-            let pinned = pins.as_ref().and_then(|p| PinnedVersions::get_pinned(&tool_name).ok().flatten());
-            let needs = if pinned.is_some() {
-                false
-            } else if let (Some(ref l), Some(ref lat)) = (&local_ver, &latest_ver) {
-                lat > l
-            } else {
-                false
-            };
-
-            let all_methods = detect_all_install_methods(tool).await;
-            let multi = all_methods.len() > 1;
-
-            (method_str, needs, local_ver, latest_ver, multi)
+                adapter.latest_version(tool).await.unwrap_or(None)
+            }
         } else {
-            (None, false, None, None, false)
+            None
         };
 
-        let _ = tx.send(ToolUpdate {
-            tool_name,
-            installed,
-            local_version: local_ver,
-            latest_version: latest_ver,
-            method: method_str,
-            path: tool_path,
-            needs_update: needs_update,
-            multiple_installs: multi,
-        });
+        let pinned = pins
+            .as_ref()
+            .and_then(|_| PinnedVersions::get_pinned(&tool_name).ok().flatten());
+        let needs = if pinned.is_some() {
+            false
+        } else if let (Some(ref l), Some(ref lat)) = (&local_ver, &latest_ver) {
+            lat > l
+        } else {
+            false
+        };
+
+        let all_methods = detect_all_install_methods(tool).await;
+        let multi = all_methods.len() > 1;
+
+        (method_str, needs, local_ver, latest_ver, multi)
+    } else {
+        (None, false, None, None, false)
+    };
+
+    ToolUpdate {
+        tool_name,
+        installed,
+        local_version: local_ver,
+        latest_version: latest_ver,
+        method: method_str,
+        path: tool_path,
+        needs_update,
+        multiple_installs: multi,
     }
 }

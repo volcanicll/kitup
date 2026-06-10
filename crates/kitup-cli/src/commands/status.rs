@@ -1,7 +1,6 @@
 //! status 子命令
 
 use crate::output;
-use anyhow::Result;
 use kitup_core::installer::{self, ToolStatus};
 use kitup_core::pin::PinnedVersions;
 use kitup_core::tool::TOOL_REGISTRY;
@@ -16,7 +15,7 @@ pub fn run(json: bool) -> anyhow::Result<()> {
 async fn run_async(json: bool) -> anyhow::Result<()> {
     let config = kitup_core::config::Config::load()?;
     let cache = VersionCache::new().ok();
-    let pins = PinnedVersions::load()?;
+    let _pins = PinnedVersions::load()?;
 
     let mut statuses = Vec::new();
 

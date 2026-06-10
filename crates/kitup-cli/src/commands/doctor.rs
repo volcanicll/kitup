@@ -1,6 +1,5 @@
 //! doctor 子命令
 
-use anyhow::Result;
 use kitup_core::installer;
 use kitup_core::tool::TOOL_REGISTRY;
 use owo_colors::OwoColorize;

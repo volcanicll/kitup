@@ -1,6 +1,5 @@
 //! changelog 子命令
 
-use anyhow::Result;
 use kitup_core::tool::{Tool, TOOL_REGISTRY};
 use owo_colors::OwoColorize;
 

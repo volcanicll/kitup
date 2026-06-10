@@ -1,6 +1,5 @@
 //! config 子命令
 
-use anyhow::Result;
 use owo_colors::OwoColorize;
 
 pub fn run() -> anyhow::Result<()> {

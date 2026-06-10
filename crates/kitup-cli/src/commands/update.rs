@@ -1,7 +1,6 @@
 //! update 子命令
 
 use crate::output;
-use anyhow::Result;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use kitup_core::config::Config;
 use kitup_core::installer;
@@ -33,7 +32,7 @@ async fn run_async(
     parallel: usize,
 ) -> anyhow::Result<()> {
     let config = Config::load()?;
-    let pins = PinnedVersions::load()?;
+    let _pins = PinnedVersions::load()?;
     let start = Instant::now();
 
     let targets: Vec<_> = if all || tool_names.is_empty() {
