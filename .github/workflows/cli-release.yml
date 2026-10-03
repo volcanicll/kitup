@@ -152,17 +152,22 @@ jobs:
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Package
+      - name: Package (tar.gz)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           mkdir -p dist
-          if [[ "${{ matrix.asset }}" == *.zip ]]; then
-            cp "target/${{ matrix.target }}/release/kitup.exe" dist/kitup.exe
-            (cd dist && zip -q "${{ matrix.asset }}" kitup.exe)
-          else
-            cp "target/${{ matrix.target }}/release/kitup" dist/kitup
-            (cd dist && tar -czf "${{ matrix.asset }}" kitup)
-          fi
+          cp "target/${{ matrix.target }}/release/kitup" dist/kitup
+          (cd dist && tar -czf "${{ matrix.asset }}" kitup && rm kitup)
+
+      - name: Package (zip)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/kitup.exe" dist/kitup.exe
+          Compress-Archive -Path dist/kitup.exe -DestinationPath "dist/${{ matrix.asset }}" -Force
+          Remove-Item dist/kitup.exe
 
       - uses: actions/upload-artifact@v4
         with:
