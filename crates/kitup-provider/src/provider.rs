@@ -8,6 +8,7 @@ use serde_json::Value;
 use std::path::PathBuf;
 
 /// 配置文件适配器 trait
+#[allow(clippy::double_must_use)]
 #[async_trait]
 pub trait ConfigAdapter: Send + Sync {
     /// 工具名称
@@ -59,7 +60,9 @@ pub struct ClaudeAdapter;
 
 #[async_trait]
 impl ConfigAdapter for ClaudeAdapter {
-    fn tool_name(&self) -> &str { "claude" }
+    fn tool_name(&self) -> &str {
+        "claude"
+    }
 
     fn config_path(&self) -> Result<PathBuf> {
         let home = std::env::var("HOME")
@@ -115,13 +118,21 @@ impl ConfigAdapter for ClaudeAdapter {
             json["model"] = Value::String(model.to_string());
         }
 
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
+        // Persist via the env map so the setting survives restarts; the
+        // previous set_var() call only affected the kitup process itself.
+        let env = json
+            .as_object_mut()
+            .ok_or_else(|| anyhow::anyhow!("settings.json 顶层必须是 JSON 对象"))?
+            .entry("env")
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        if let Some(env_map) = env.as_object_mut() {
+            env_map.insert(
+                "ANTHROPIC_BASE_URL".to_string(),
+                Value::String(api_base.to_string()),
+            );
         }
-        std::fs::write(&path, serde_json::to_string_pretty(&json)?)?;
 
-        // 设置环境变量
-        std::env::set_var("ANTHROPIC_BASE_URL", api_base);
+        kitup_core::atomic_write(&path, &serde_json::to_string_pretty(&json)?)?;
 
         Ok(())
     }
@@ -132,7 +143,9 @@ pub struct GeminiAdapter;
 
 #[async_trait]
 impl ConfigAdapter for GeminiAdapter {
-    fn tool_name(&self) -> &str { "gemini" }
+    fn tool_name(&self) -> &str {
+        "gemini"
+    }
 
     fn config_path(&self) -> Result<PathBuf> {
         let home = std::env::var("HOME")
@@ -156,7 +169,19 @@ impl ConfigAdapter for GeminiAdapter {
         _model_override: Option<&str>,
     ) -> Result<()> {
         self.backup_config().await?;
-        std::env::set_var("GEMINI_API_BASE", api_base);
+        // Gemini CLI reads dotenv-style settings from ~/.gemini/.env.
+        let path = self
+            .config_path()?
+            .parent()
+            .map(|p| p.join(".env"))
+            .ok_or_else(|| anyhow::anyhow!("无法确定 .env 路径"))?;
+        let mut content = if path.exists() {
+            std::fs::read_to_string(&path)?
+        } else {
+            String::new()
+        };
+        upsert_env_line(&mut content, "GEMINI_API_BASE", api_base);
+        kitup_core::atomic_write(&path, &content)?;
         Ok(())
     }
 }
@@ -166,7 +191,9 @@ pub struct CodexAdapter;
 
 #[async_trait]
 impl ConfigAdapter for CodexAdapter {
-    fn tool_name(&self) -> &str { "codex" }
+    fn tool_name(&self) -> &str {
+        "codex"
+    }
 
     fn config_path(&self) -> Result<PathBuf> {
         let home = std::env::var("HOME")
@@ -190,7 +217,65 @@ impl ConfigAdapter for CodexAdapter {
         _model_override: Option<&str>,
     ) -> Result<()> {
         self.backup_config().await?;
-        std::env::set_var("OPENAI_BASE_URL", api_base);
+        // Codex reads base URL from config.toml's model_provider section;
+        // write it as a top-level comment-style key the CLI documents for
+        // custom endpoints via OPENAI_BASE_URL passthrough in .env instead.
+        let env_path = self
+            .config_path()?
+            .parent()
+            .map(|p| p.join(".env"))
+            .ok_or_else(|| anyhow::anyhow!("无法确定 .env 路径"))?;
+        let mut content = if env_path.exists() {
+            std::fs::read_to_string(&env_path)?
+        } else {
+            String::new()
+        };
+        upsert_env_line(&mut content, "OPENAI_BASE_URL", api_base);
+        kitup_core::atomic_write(&env_path, &content)?;
         Ok(())
+    }
+}
+
+/// Replace or append a KEY=value line in dotenv-style content.
+fn upsert_env_line(content: &mut String, key: &str, value: &str) {
+    let mut found = false;
+    let mut lines: Vec<String> = content
+        .lines()
+        .map(|line| {
+            if line.trim_start().starts_with(&format!("{}=", key)) {
+                found = true;
+                format!("{}={}", key, value)
+            } else {
+                line.to_string()
+            }
+        })
+        .collect();
+    if !found {
+        lines.push(format!("{}={}", key, value));
+    }
+    *content = lines.join("\n");
+    if !content.ends_with('\n') {
+        content.push('\n');
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_upsert_env_line_appends() {
+        let mut content = String::from("FOO=1\n");
+        upsert_env_line(&mut content, "BAR", "https://x.example");
+        assert!(content.contains("BAR=https://x.example"));
+    }
+
+    #[test]
+    fn test_upsert_env_line_replaces() {
+        let mut content = String::from("OPENAI_BASE_URL=https://old\nFOO=1\n");
+        upsert_env_line(&mut content, "OPENAI_BASE_URL", "https://new");
+        assert!(content.contains("OPENAI_BASE_URL=https://new"));
+        assert!(!content.contains("https://old"));
+        assert!(content.contains("FOO=1"));
     }
 }

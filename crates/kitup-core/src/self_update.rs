@@ -38,16 +38,9 @@ impl SelfUpdater {
             }
         }
 
-        let url = format!(
-            "https://api.github.com/repos/{}/releases/latest",
-            self.repo
-        );
+        let url = format!("https://api.github.com/repos/{}/releases/latest", self.repo);
         let client = reqwest::Client::new();
-        let response = client
-            .get(&url)
-            .header("User-Agent", "kitup")
-            .send()
-            .await;
+        let response = client.get(&url).header("User-Agent", "kitup").send().await;
 
         match response {
             Ok(resp) if resp.status().is_success() => {
@@ -85,7 +78,11 @@ impl SelfUpdater {
             return Ok(None);
         }
 
-        Ok(if version_str.is_empty() { None } else { Some(version_str) })
+        Ok(if version_str.is_empty() {
+            None
+        } else {
+            Some(version_str)
+        })
     }
 
     fn write_cache(&self, version: &str) -> Result<()> {
@@ -128,20 +125,111 @@ impl SelfUpdater {
             anyhow::bail!("下载失败: HTTP {}", response.status());
         }
 
-        let current_exe = std::env::current_exe()?;
-        let tmp_dir = std::env::temp_dir();
-        let tmp_file = tmp_dir.join("kitup-update");
-
         let bytes = response.bytes().await?;
-        std::fs::write(&tmp_file, &bytes)?;
 
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&tmp_file, std::fs::Permissions::from_mode(0o755))?;
-        }
-
-        std::fs::rename(&tmp_file, &current_exe)?;
-        Ok(())
+        do_replace(asset_name, &bytes).await
     }
+}
+
+/// Extract the downloaded release archive, sanity-check the new binary, then
+/// atomically replace the current executable (keeping a backup until success).
+async fn do_replace(asset_name: &str, bytes: &[u8]) -> Result<()> {
+    let current_exe = std::env::current_exe()?;
+    let tmp_dir = std::env::temp_dir();
+    let work_dir = tmp_dir.join(format!("kitup-update-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&work_dir);
+    std::fs::create_dir_all(&work_dir)?;
+
+    let archive_path = work_dir.join(asset_name);
+    std::fs::write(&archive_path, bytes)?;
+
+    let binary_name = if cfg!(windows) { "kitup.exe" } else { "kitup" };
+
+    #[cfg(unix)]
+    {
+        let tar = tokio::process::Command::new("tar")
+            .args(["-xzf", archive_path.to_string_lossy().as_ref(), "-C"])
+            .arg(&work_dir)
+            .output()
+            .await?;
+        if !tar.status.success() {
+            anyhow::bail!(
+                "解压更新包失败: {}",
+                String::from_utf8_lossy(&tar.stderr).trim()
+            );
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        let powershell = tokio::process::Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                &format!(
+                    "Expand-Archive -Force -LiteralPath '{}' -DestinationPath '{}'",
+                    archive_path.to_string_lossy(),
+                    work_dir.to_string_lossy()
+                ),
+            ])
+            .output()
+            .await?;
+        if !powershell.status.success() {
+            anyhow::bail!(
+                "解压更新包失败: {}",
+                String::from_utf8_lossy(&powershell.stderr).trim()
+            );
+        }
+    }
+
+    // The binary may sit at the archive root or inside a top-level folder.
+    let extracted = find_file(&work_dir, binary_name)?
+        .ok_or_else(|| anyhow::anyhow!("更新包中未找到 {}", binary_name))?;
+
+    let version_check = tokio::process::Command::new(&extracted)
+        .arg("--version")
+        .output()
+        .await;
+    match version_check {
+        Ok(o) if o.status.success() => {}
+        _ => {
+            let _ = std::fs::remove_dir_all(&work_dir);
+            anyhow::bail!("新二进制无法运行 (--version 校验失败)，已取消更新");
+        }
+    }
+
+    let staged = tmp_dir.join(format!("kitup-update-{}", std::process::id()));
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::copy(&extracted, &staged)?;
+        std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o755))?;
+    }
+    #[cfg(windows)]
+    std::fs::copy(&extracted, &staged)?;
+
+    let backup = tmp_dir.join(format!("kitup-backup-{}", std::process::id()));
+    std::fs::copy(&current_exe, &backup)?;
+
+    std::fs::rename(&staged, &current_exe)?;
+
+    let _ = std::fs::remove_dir_all(&work_dir);
+    let _ = std::fs::remove_file(&backup);
+    Ok(())
+}
+
+fn find_file(dir: &std::path::Path, name: &str) -> Result<Option<std::path::PathBuf>> {
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(current) = stack.pop() {
+        for entry in std::fs::read_dir(&current)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.file_name().and_then(|n| n.to_str()) == Some(name) {
+                return Ok(Some(path));
+            }
+        }
+    }
+    Ok(None)
 }

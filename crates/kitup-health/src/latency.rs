@@ -27,9 +27,7 @@ pub async fn measure_provider_latency(
 
     let start = std::time::Instant::now();
 
-    let mut request = client
-        .get(api_base)
-        .header("User-Agent", "kitup");
+    let mut request = client.get(api_base).header("User-Agent", "kitup");
 
     if let Some(key) = api_key {
         request = request.header("Authorization", format!("Bearer {}", key));

@@ -52,6 +52,7 @@ pub struct ToolStatus {
 }
 
 /// 包管理器统一接口
+#[allow(clippy::double_must_use)]
 #[async_trait]
 pub trait PackageManager: Send + Sync {
     fn name(&self) -> &str;
@@ -63,7 +64,9 @@ pub trait PackageManager: Send + Sync {
 }
 
 /// 检测工具的安装方式（PATH 优先策略）
-pub async fn detect_install_method(tool: &Tool) -> Option<(InstallMethod, Box<dyn PackageManager>)> {
+pub async fn detect_install_method(
+    tool: &Tool,
+) -> Option<(InstallMethod, Box<dyn PackageManager>)> {
     let tool_path = which::which(tool.command).ok()?;
 
     if tool.brew_formula.is_some() {
@@ -115,7 +118,10 @@ pub async fn detect_install_method(tool: &Tool) -> Option<(InstallMethod, Box<dy
         }
     }
 
-    Some((InstallMethod::Unknown, Box::new(standalone::StandaloneAdapter)))
+    Some((
+        InstallMethod::Unknown,
+        Box::new(standalone::StandaloneAdapter),
+    ))
 }
 
 /// 检测所有安装方式

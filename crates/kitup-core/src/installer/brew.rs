@@ -6,7 +6,6 @@ use crate::version::parse_version;
 use anyhow::Result;
 use async_trait::async_trait;
 use semver::Version;
-use std::path::PathBuf;
 use tokio::process::Command;
 
 pub struct BrewAdapter;
@@ -24,7 +23,7 @@ impl BrewAdapter {
         }
     }
 
-    pub fn is_path_match(&self, tool_path: &PathBuf) -> bool {
+    pub fn is_path_match(&self, tool_path: &std::path::Path) -> bool {
         if let Some(prefix) = Self::brew_prefix_sync() {
             tool_path.starts_with(format!("{}/bin/", prefix))
         } else {
@@ -35,14 +34,13 @@ impl BrewAdapter {
 
 #[async_trait]
 impl PackageManager for BrewAdapter {
-    fn name(&self) -> &str { "brew" }
+    fn name(&self) -> &str {
+        "brew"
+    }
 
     async fn is_installed(&self, tool: &Tool) -> bool {
-        if let Some(ref formula) = tool.brew_formula {
-            let output = Command::new("brew")
-                .args(["list", formula])
-                .output()
-                .await;
+        if let Some(formula) = tool.brew_formula {
+            let output = Command::new("brew").args(["list", formula]).output().await;
             if matches!(output, Ok(o) if o.status.success()) {
                 return true;
             }
@@ -58,7 +56,7 @@ impl PackageManager for BrewAdapter {
     }
 
     async fn local_version(&self, tool: &Tool) -> Result<Option<Version>> {
-        if let Some(ref formula) = tool.brew_formula {
+        if let Some(formula) = tool.brew_formula {
             let output = Command::new("brew")
                 .args(["info", formula, "--json"])
                 .output()

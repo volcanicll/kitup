@@ -11,22 +11,20 @@ pub async fn run_diagnostics(fix: bool, verbose: bool) -> Vec<CheckResult> {
     if fix {
         let mut fixed = Vec::new();
         for result in &results {
-            if result.fixable && result.status == CheckStatus::Error {
-                match result.category {
-                    CheckCategory::Config => {
-                        if let Ok(path) = kitup_core::config::Config::init() {
-                            fixed.push(CheckResult {
-                                name: "Configuration fix".to_string(),
-                                category: CheckCategory::Config,
-                                status: CheckStatus::Ok,
-                                message: format!("Created default config: {}", path.to_string_lossy()),
-                                suggestion: None,
-                                fixable: false,
-                                latency_ms: None,
-                            });
-                        }
-                    }
-                    _ => {}
+            if result.fixable
+                && result.status == CheckStatus::Error
+                && result.category == CheckCategory::Config
+            {
+                if let Ok(path) = kitup_core::config::Config::init() {
+                    fixed.push(CheckResult {
+                        name: "Configuration fix".to_string(),
+                        category: CheckCategory::Config,
+                        status: CheckStatus::Ok,
+                        message: format!("Created default config: {}", path.to_string_lossy()),
+                        suggestion: None,
+                        fixable: false,
+                        latency_ms: None,
+                    });
                 }
             }
         }
@@ -46,9 +44,18 @@ pub async fn run_diagnostics(fix: bool, verbose: bool) -> Vec<CheckResult> {
 /// 生成诊断摘要
 pub fn summarize(results: &[CheckResult]) -> DiagnosticSummary {
     let total = results.len();
-    let errors = results.iter().filter(|r| r.status == CheckStatus::Error).count();
-    let warnings = results.iter().filter(|r| r.status == CheckStatus::Warn).count();
-    let ok = results.iter().filter(|r| r.status == CheckStatus::Ok).count();
+    let errors = results
+        .iter()
+        .filter(|r| r.status == CheckStatus::Error)
+        .count();
+    let warnings = results
+        .iter()
+        .filter(|r| r.status == CheckStatus::Warn)
+        .count();
+    let ok = results
+        .iter()
+        .filter(|r| r.status == CheckStatus::Ok)
+        .count();
     let fixable = results.iter().filter(|r| r.fixable).count();
 
     DiagnosticSummary {

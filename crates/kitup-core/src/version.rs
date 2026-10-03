@@ -8,12 +8,11 @@ use std::time::{Duration, SystemTime};
 
 /// 从命令输出字符串中解析出语义版本
 pub fn parse_version(output: &str) -> Option<Version> {
-    let re = Regex::new(r"(?i)v?(\d+\.\d+\.\d+(?:[-\.][a-zA-Z0-9.]+)?)").ok()?;
+    let re = Regex::new(r"(?i)v?(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)").ok()?;
 
     if let Some(caps) = re.captures(output) {
         let ver_str = caps.get(1)?.as_str();
-        let normalized = ver_str.replace('-', ".");
-        Version::parse(&normalized).ok()
+        Version::parse(ver_str).ok()
     } else {
         None
     }
@@ -68,8 +67,7 @@ impl VersionCache {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)?
             .as_secs();
-        std::fs::write(&file, format!("{}|{}", version, now))?;
-        Ok(())
+        crate::atomic_write(&file, &format!("{}|{}", version, now))
     }
 }
 
@@ -102,6 +100,14 @@ mod tests {
     fn test_parse_version_no_match() {
         assert!(parse_version("no version here").is_none());
         assert!(parse_version("").is_none());
+    }
+
+    #[test]
+    fn test_parse_prerelease_version() {
+        let v = parse_version("1.2.3-beta.1").unwrap();
+        assert_eq!(v.major, 1);
+        assert_eq!(v.pre.to_string(), "beta.1");
+        assert!(parse_version("v2.0.0-rc1").is_some());
     }
 
     #[test]

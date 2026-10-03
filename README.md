@@ -121,7 +121,7 @@ kitup self-update               # Update kitup itself
 
 ## ⚙️ Configuration
 
-Config file: `~/.config/kitup/config.json` (macOS: `~/Library/Application Support/com.kitup.kitup/config.json`)
+Config file: `~/Library/Application Support/com.kitup.kitup/config.json` (macOS) or `~/.config/kitup/config.json` (Linux)
 
 ```json
 {

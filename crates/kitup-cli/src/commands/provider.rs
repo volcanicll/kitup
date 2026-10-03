@@ -34,7 +34,10 @@ async fn list_providers() -> Result<()> {
 
     if config.list().is_empty() {
         println!("  No providers configured.");
-        println!("  Run {} to add one.", "kitup provider add --name ... --api-base ...".bold());
+        println!(
+            "  Run {} to add one.",
+            "kitup provider add --name ... --api-base ...".bold()
+        );
     } else {
         for provider in config.list() {
             let status_icon = match provider.health.status {
@@ -72,10 +75,7 @@ async fn switch_provider(name: &str, tool: Option<String>) -> Result<()> {
         .ok_or_else(|| anyhow::anyhow!("Provider '{}' not found", name))?
         .clone();
 
-    let api_key_env = provider
-        .api_key_env
-        .clone()
-        .unwrap_or_default();
+    let api_key_env = provider.api_key_env.clone().unwrap_or_default();
 
     // 根据工具选择适配器
     let tools_to_switch: Vec<&str> = if let Some(ref t) = tool {
@@ -126,7 +126,11 @@ async fn switch_provider(name: &str, tool: Option<String>) -> Result<()> {
                 .await
             }
             _ => {
-                eprintln!("  {} Unknown tool: {}", output::symbols::CROSS.red(), tool_name);
+                eprintln!(
+                    "  {} Unknown tool: {}",
+                    output::symbols::CROSS.red(),
+                    tool_name
+                );
                 continue;
             }
         };
@@ -193,7 +197,11 @@ async fn test_provider(name: Option<String>) -> Result<()> {
 
     for result in &results {
         let status = match (&result.latency_ms, &result.error) {
-            (Some(ms), None) if *ms < 200 => format!("{} {} OK", output::symbols::CHECK.green(), ms.to_string().green()),
+            (Some(ms), None) if *ms < 200 => format!(
+                "{} {} OK",
+                output::symbols::CHECK.green(),
+                ms.to_string().green()
+            ),
             (Some(ms), None) => format!("{} {}ms", "⚡".yellow(), ms.to_string().yellow()),
             (_, Some(e)) => format!("{} {}", output::symbols::CROSS.red(), e.red()),
             _ => "unknown".to_string(),

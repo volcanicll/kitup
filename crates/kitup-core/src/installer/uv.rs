@@ -12,14 +12,13 @@ pub struct UvAdapter;
 
 #[async_trait]
 impl PackageManager for UvAdapter {
-    fn name(&self) -> &str { "uv" }
+    fn name(&self) -> &str {
+        "uv"
+    }
 
     async fn is_installed(&self, tool: &Tool) -> bool {
         if let Some(ref pkg) = tool.uv_package {
-            let output = Command::new("uv")
-                .args(["tool", "list"])
-                .output()
-                .await;
+            let output = Command::new("uv").args(["tool", "list"]).output().await;
             match output {
                 Ok(output) if output.status.success() => {
                     String::from_utf8_lossy(&output.stdout).contains(pkg)

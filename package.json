@@ -3,19 +3,11 @@
   "version": "0.2.0",
   "description": "A unified, cross-platform updater for AI coding assistants",
   "private": true,
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
-    "lint": "turbo run lint",
-    "test": "turbo run test"
+    "build": "cargo build --release",
+    "test": "cargo test --workspace && pnpm --dir packages/cli test",
+    "build:website": "pnpm --dir packages/website build"
   },
-  "devDependencies": {
-    "turbo": "^2.0.0"
-  },
-  "packageManager": "pnpm@9.0.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/volcanicll/kitup.git"

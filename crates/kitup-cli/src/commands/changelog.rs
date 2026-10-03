@@ -21,10 +21,10 @@ async fn run_async(tool_name: Option<String>, all: bool) -> anyhow::Result<()> {
             }
         }
     } else {
-        let name = tool_name
-            .ok_or_else(|| anyhow::anyhow!("Please specify a tool name or use --all"))?;
-        let tool = Tool::find_by_name(&name)
-            .ok_or_else(|| anyhow::anyhow!("Unknown tool: {}", name))?;
+        let name =
+            tool_name.ok_or_else(|| anyhow::anyhow!("Please specify a tool name or use --all"))?;
+        let tool =
+            Tool::find_by_name(&name).ok_or_else(|| anyhow::anyhow!("Unknown tool: {}", name))?;
         show_changelog(tool, config.changelog_count).await?;
     }
 
@@ -55,11 +55,7 @@ async fn show_changelog(tool: &Tool, count: usize) -> anyhow::Result<()> {
     let releases: Vec<serde_json::Value> = response.json().await?;
 
     println!();
-    println!(
-        "  {} {} — Recent Changes",
-        "●".cyan(),
-        tool.name.bold()
-    );
+    println!("  {} {} — Recent Changes", "●".cyan(), tool.name.bold());
     println!("  {}", "─".repeat(50));
 
     for release in &releases {

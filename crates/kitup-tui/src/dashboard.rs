@@ -11,10 +11,10 @@ pub fn render(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1),  // 标题
+            Constraint::Length(1), // 标题
             Constraint::Min(10),   // 主内容
-            Constraint::Length(2),  // 操作栏
-            Constraint::Length(1),  // 状态栏
+            Constraint::Length(2), // 操作栏
+            Constraint::Length(1), // 状态栏
         ])
         .split(size);
 
@@ -99,11 +99,8 @@ fn render_tools_list(f: &mut Frame, app: &App, area: Rect) {
                 Style::default().fg(Color::Yellow),
             )),
         ];
-        let paragraph = Paragraph::new(lines).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Tools "),
-        );
+        let paragraph =
+            Paragraph::new(lines).block(Block::default().borders(Borders::ALL).title(" Tools "));
         f.render_widget(paragraph, area);
         return;
     }
@@ -117,11 +114,8 @@ fn render_tools_list(f: &mut Frame, app: &App, area: Rect) {
                 Style::default().fg(Color::DarkGray),
             )),
         ];
-        let paragraph = Paragraph::new(lines).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Tools "),
-        );
+        let paragraph =
+            Paragraph::new(lines).block(Block::default().borders(Borders::ALL).title(" Tools "));
         f.render_widget(paragraph, area);
         return;
     }
@@ -147,7 +141,11 @@ fn render_tools_list(f: &mut Frame, app: &App, area: Rect) {
                 _ => "-".to_string(),
             };
 
-            let marker = if app.selected[i] && tool.installed { "◉" } else { icon };
+            let marker = if app.selected[i] && tool.installed {
+                "◉"
+            } else {
+                icon
+            };
 
             let line = Line::from(vec![
                 Span::styled(format!(" {} ", marker), style),
@@ -170,11 +168,7 @@ fn render_tools_list(f: &mut Frame, app: &App, area: Rect) {
         })
         .collect();
 
-    let list = List::new(items).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title(" Tools "),
-    );
+    let list = List::new(items).block(Block::default().borders(Borders::ALL).title(" Tools "));
 
     f.render_widget(list, area);
 }
@@ -217,10 +211,7 @@ fn render_detail(f: &mut Frame, app: &App, area: Rect) {
         ]),
         Line::from(vec![
             Span::raw("  Method:     "),
-            Span::styled(
-                tool.method.as_deref().unwrap_or("-"),
-                Style::default(),
-            ),
+            Span::styled(tool.method.as_deref().unwrap_or("-"), Style::default()),
         ]),
         Line::from(vec![
             Span::raw("  Path:       "),
@@ -239,11 +230,8 @@ fn render_detail(f: &mut Frame, app: &App, area: Rect) {
         )),
     ];
 
-    let paragraph = Paragraph::new(lines).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title(" Details "),
-    );
+    let paragraph =
+        Paragraph::new(lines).block(Block::default().borders(Borders::ALL).title(" Details "));
 
     f.render_widget(paragraph, area);
 }
@@ -262,11 +250,8 @@ fn render_providers_tab(f: &mut Frame, _app: &App, area: Rect) {
         Line::from(Span::raw("    kitup provider test")),
     ];
 
-    let paragraph = Paragraph::new(lines).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title(" Providers "),
-    );
+    let paragraph =
+        Paragraph::new(lines).block(Block::default().borders(Borders::ALL).title(" Providers "));
     f.render_widget(paragraph, area);
 }
 
@@ -283,11 +268,8 @@ fn render_health_tab(f: &mut Frame, _app: &App, area: Rect) {
         Line::from(Span::raw("    kitup doctor --fix")),
     ];
 
-    let paragraph = Paragraph::new(lines).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title(" Health "),
-    );
+    let paragraph =
+        Paragraph::new(lines).block(Block::default().borders(Borders::ALL).title(" Health "));
     f.render_widget(paragraph, area);
 }
 
@@ -297,7 +279,11 @@ fn render_actions(f: &mut Frame, app: &App, area: Rect) {
     let actions = vec![
         Span::styled(
             " [u]pdate",
-            if selected > 0 { Style::default().fg(Color::Green).bold() } else { Style::default().fg(Color::DarkGray) },
+            if selected > 0 {
+                Style::default().fg(Color::Green).bold()
+            } else {
+                Style::default().fg(Color::DarkGray)
+            },
         ),
         Span::raw("  "),
         Span::styled("[a]ll", Style::default().fg(Color::Cyan)),
@@ -371,7 +357,10 @@ fn render_help_popup(f: &mut Frame) {
     let area = centered_rect(50, 60, f.area());
 
     let help_text = vec![
-        Line::from(Span::styled(" Keyboard Shortcuts ", Style::default().bold().fg(Color::Cyan))),
+        Line::from(Span::styled(
+            " Keyboard Shortcuts ",
+            Style::default().bold().fg(Color::Cyan),
+        )),
         Line::from(""),
         Line::from("  ↑/k      Move up"),
         Line::from("  ↓/j      Move down"),
@@ -385,7 +374,10 @@ fn render_help_popup(f: &mut Frame) {
         Line::from("  ?        Toggle this help"),
         Line::from("  q/Esc    Quit"),
         Line::from(""),
-        Line::from(Span::styled(" Press any key to close", Style::default().fg(Color::DarkGray))),
+        Line::from(Span::styled(
+            " Press any key to close",
+            Style::default().fg(Color::DarkGray),
+        )),
     ];
 
     let paragraph = Paragraph::new(help_text)

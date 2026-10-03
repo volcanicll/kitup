@@ -46,7 +46,10 @@ fn main() -> anyhow::Result<()> {
         Some(args::Commands::Changelog { tool, all }) => {
             commands::changelog::run(tool, all)?;
         }
-        Some(args::Commands::Doctor { fix, verbose: doc_verbose }) => {
+        Some(args::Commands::Doctor {
+            fix,
+            verbose: doc_verbose,
+        }) => {
             commands::doctor::run(fix, doc_verbose || cli.verbose)?;
         }
         Some(args::Commands::Provider { action }) => {

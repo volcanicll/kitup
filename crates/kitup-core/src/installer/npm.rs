@@ -6,7 +6,6 @@ use crate::version::parse_version;
 use anyhow::Result;
 use async_trait::async_trait;
 use semver::Version;
-use std::path::PathBuf;
 use tokio::process::Command;
 
 /// npm 全局包管理器适配器
@@ -25,7 +24,7 @@ impl NpmAdapter {
         }
     }
 
-    pub fn is_path_match(&self, tool_path: &PathBuf) -> bool {
+    pub fn is_path_match(&self, tool_path: &std::path::Path) -> bool {
         if let Some(prefix) = Self::global_prefix_sync() {
             tool_path.starts_with(format!("{}/bin/", prefix))
                 || tool_path.starts_with(format!("{}\\", prefix).replace('/', "\\"))
@@ -37,10 +36,12 @@ impl NpmAdapter {
 
 #[async_trait]
 impl PackageManager for NpmAdapter {
-    fn name(&self) -> &str { "npm" }
+    fn name(&self) -> &str {
+        "npm"
+    }
 
     async fn is_installed(&self, tool: &Tool) -> bool {
-        if let Some(ref pkg) = tool.npm_package {
+        if let Some(pkg) = tool.npm_package {
             Command::new("npm")
                 .args(["list", "-g", pkg])
                 .output()
@@ -53,7 +54,7 @@ impl PackageManager for NpmAdapter {
     }
 
     async fn local_version(&self, tool: &Tool) -> Result<Option<Version>> {
-        if let Some(ref pkg) = tool.npm_package {
+        if let Some(pkg) = tool.npm_package {
             let output = Command::new("npm")
                 .args(["list", "-g", pkg, "--depth=0", "--json"])
                 .output()
@@ -64,7 +65,7 @@ impl PackageManager for NpmAdapter {
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(&json_str) {
                     if let Some(ver) = json
                         .get("dependencies")
-                        .and_then(|d| d.get(*pkg))
+                        .and_then(|d| d.get(pkg))
                         .and_then(|d| d.get("version"))
                         .and_then(|v| v.as_str())
                     {
@@ -85,7 +86,7 @@ impl PackageManager for NpmAdapter {
     }
 
     async fn latest_version(&self, tool: &Tool) -> Result<Option<Version>> {
-        if let Some(ref pkg) = tool.npm_package {
+        if let Some(pkg) = tool.npm_package {
             let output = Command::new("npm")
                 .args(["view", pkg, "version"])
                 .output()
@@ -100,7 +101,9 @@ impl PackageManager for NpmAdapter {
     async fn update(&self, tool: &Tool) -> Result<()> {
         if let Some(ref pkg) = tool.npm_package {
             let status = Command::new("npm")
-                .args(["update", "-g", pkg])
+                // npm update -g respects the original semver range and may not
+                // move to the newest release; install@latest always does.
+                .args(["install", "-g", &format!("{}@latest", pkg)])
                 .status()
                 .await?;
             if !status.success() {

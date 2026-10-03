@@ -8,6 +8,7 @@ on:
     branches: [ main ]
     paths:
       - 'packages/cli/**'
+  workflow_dispatch:
 
 jobs:
   lint:
@@ -85,25 +86,111 @@ jobs:
         run: |
           ./kitup.sh --status
 
+  rust:
+    name: Rust checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: [lint, test, rust]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            asset: kitup-aarch64-apple-darwin.tar.gz
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            asset: kitup-x86_64-apple-darwin.tar.gz
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset: kitup-x86_64-unknown-linux-gnu.tar.gz
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            asset: kitup-aarch64-unknown-linux-gnu.tar.gz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset: kitup-x86_64-pc-windows-msvc.zip
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install ARM Linux linker
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package
+        shell: bash
+        run: |
+          mkdir -p dist
+          if [[ "${{ matrix.asset }}" == *.zip ]]; then
+            cp "target/${{ matrix.target }}/release/kitup.exe" dist/kitup.exe
+            (cd dist && zip -q "${{ matrix.asset }}" kitup.exe)
+          else
+            cp "target/${{ matrix.target }}/release/kitup" dist/kitup
+            (cd dist && tar -czf "${{ matrix.asset }}" kitup)
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/${{ matrix.asset }}
+
   release:
     name: Create Release
-    needs: [lint, test]
+    needs: [build]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
-    defaults:
-      run:
-        working-directory: packages/cli
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
       - name: Generate checksums
         run: |
-          sha256sum install.sh > checksums.txt
-          sha256sum kitup.sh >> checksums.txt
-          sha256sum install.ps1 >> checksums.txt
-          sha256sum kitup.ps1 >> checksums.txt
+          cd packages/cli
+          sha256sum install.sh kitup.sh install.ps1 kitup.ps1 > checksums.txt
+          cd ../../dist
+          sha256sum kitup-*.tar.gz kitup-*.zip >> checksums.txt
+          cat checksums.txt
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -113,24 +200,7 @@ jobs:
             packages/cli/kitup.sh
             packages/cli/install.ps1
             packages/cli/kitup.ps1
-            packages/cli/checksums.txt
-          body: |
-            ## kitup ${{ github.ref_name }}
-
-            ### Installation
-
-            **macOS / Linux:**
-            ```bash
-            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/packages/cli/install.sh | bash
-            ```
-
-            **Windows:**
-            ```powershell
-            irm https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/packages/cli/install.ps1 | iex
-            ```
-
-            ### Checksums
-            ```
-            ${{ steps.checksums.outputs.checksums }}
-            ```
+            dist/kitup-*.tar.gz
+            dist/kitup-*.zip
+            dist/checksums.txt
           generate_release_notes: true

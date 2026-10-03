@@ -27,11 +27,21 @@ pub struct Config {
     pub self_update_ttl_secs: u64,
 }
 
-fn default_parallel_jobs() -> usize { 3 }
-fn default_true() -> bool { true }
-fn default_changelog_count() -> usize { 3 }
-fn default_action() -> String { "tui".to_string() }
-fn default_self_update_ttl() -> u64 { 86400 }
+fn default_parallel_jobs() -> usize {
+    3
+}
+fn default_true() -> bool {
+    true
+}
+fn default_changelog_count() -> usize {
+    3
+}
+fn default_action() -> String {
+    "tui".to_string()
+}
+fn default_self_update_ttl() -> u64 {
+    86400
+}
 
 impl Default for Config {
     fn default() -> Self {
@@ -85,16 +95,32 @@ impl Config {
 
         let config = Config {
             version: 2,
-            parallel_jobs: v1.get("parallel_jobs").and_then(|v| v.as_u64()).unwrap_or(3) as usize,
-            auto_backup: v1.get("auto_backup").and_then(|v| v.as_bool()).unwrap_or(false),
-            auto_install_missing: v1.get("auto_install_missing").and_then(|v| v.as_bool()).unwrap_or(false),
+            parallel_jobs: v1
+                .get("parallel_jobs")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(3) as usize,
+            auto_backup: v1
+                .get("auto_backup")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
+            auto_install_missing: v1
+                .get("auto_install_missing")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
             verbose: v1.get("verbose").and_then(|v| v.as_bool()).unwrap_or(false),
-            exclude_tools: v1.get("exclude_tools")
+            exclude_tools: v1
+                .get("exclude_tools")
                 .and_then(|v| v.as_str())
                 .map(|s| s.split(',').map(|t| t.trim().to_string()).collect())
                 .unwrap_or_default(),
-            detect_new_tools: v1.get("detect_new_tools").and_then(|v| v.as_bool()).unwrap_or(true),
-            changelog_count: v1.get("changelog_count").and_then(|v| v.as_u64()).unwrap_or(3) as usize,
+            detect_new_tools: v1
+                .get("detect_new_tools")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true),
+            changelog_count: v1
+                .get("changelog_count")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(3) as usize,
             default_action: "tui".to_string(),
             self_update_ttl_secs: 86400,
         };
@@ -105,11 +131,9 @@ impl Config {
     }
 
     pub fn save(&self) -> Result<()> {
-        let dir = Self::config_dir()?;
-        std::fs::create_dir_all(&dir)?;
         let path = Self::config_path()?;
         let content = serde_json::to_string_pretty(self)?;
-        std::fs::write(&path, content)?;
+        crate::atomic_write(&path, &content)?;
         Ok(())
     }
 
@@ -130,7 +154,8 @@ fn dirs_v1() -> Result<PathBuf> {
         std::env::var("HOME")
             .or_else(|_| std::env::var("USERPROFILE"))
             .unwrap_or_else(|_| ".".to_string()),
-    ).join(".kitup"))
+    )
+    .join(".kitup"))
 }
 
 #[cfg(test)]

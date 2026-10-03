@@ -3,11 +3,7 @@
 use crate::{CheckCategory, CheckResult, CheckStatus, LatencyResult};
 
 /// 端点健康检查
-pub async fn check_endpoint(
-    name: &str,
-    url: &str,
-    timeout_secs: u64,
-) -> LatencyResult {
+pub async fn check_endpoint(name: &str, url: &str, timeout_secs: u64) -> LatencyResult {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(timeout_secs))
         .build();
@@ -15,12 +11,7 @@ pub async fn check_endpoint(
     match client {
         Ok(client) => {
             let start = std::time::Instant::now();
-            match client
-                .get(url)
-                .header("User-Agent", "kitup")
-                .send()
-                .await
-            {
+            match client.get(url).header("User-Agent", "kitup").send().await {
                 Ok(resp) => {
                     let elapsed = start.elapsed();
                     LatencyResult {
@@ -51,16 +42,15 @@ pub async fn check_endpoint(
 }
 
 /// 批量检查多个端点
-pub async fn check_endpoints(
-    endpoints: &[(&str, &str)],
-    timeout_secs: u64,
-) -> Vec<LatencyResult> {
+pub async fn check_endpoints(endpoints: &[(&str, &str)], timeout_secs: u64) -> Vec<LatencyResult> {
     let mut handles = Vec::new();
 
     for (name, url) in endpoints {
         let name = name.to_string();
         let url = url.to_string();
-        handles.push(tokio::spawn(async move { check_endpoint(&name, &url, timeout_secs).await }));
+        handles.push(tokio::spawn(async move {
+            check_endpoint(&name, &url, timeout_secs).await
+        }));
     }
 
     let mut results = Vec::new();
@@ -106,7 +96,12 @@ pub async fn run_system_checks() -> Vec<CheckResult> {
     }
 
     // 2. 包管理器检查
-    for (cmd, name) in [("npm", "npm"), ("brew", "Homebrew"), ("pipx", "pipx"), ("uv", "uv")] {
+    for (cmd, name) in [
+        ("npm", "npm"),
+        ("brew", "Homebrew"),
+        ("pipx", "pipx"),
+        ("uv", "uv"),
+    ] {
         if which::which(cmd).is_ok() {
             results.push(CheckResult {
                 name: format!("{} available", name),
@@ -146,7 +141,10 @@ pub async fn run_system_checks() -> Vec<CheckResult> {
                 (_, Some(e)) => format!("Unreachable: {}", e),
                 _ => "Unknown".to_string(),
             },
-            suggestion: result.error.as_ref().map(|_| "Check network connection".to_string()),
+            suggestion: result
+                .error
+                .as_ref()
+                .map(|_| "Check network connection".to_string()),
             fixable: false,
             latency_ms: result.latency_ms,
         });
@@ -165,7 +163,11 @@ pub async fn run_system_checks() -> Vec<CheckResult> {
                         "{} has {} installations: {}",
                         tool.name,
                         all_methods.len(),
-                        all_methods.iter().map(|m| m.to_string()).collect::<Vec<_>>().join(", ")
+                        all_methods
+                            .iter()
+                            .map(|m| m.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
                     ),
                     suggestion: Some("Clean up old installations, keep only one".to_string()),
                     fixable: false,

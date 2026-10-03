@@ -31,7 +31,9 @@ pub struct Provider {
     pub health: HealthStatus,
 }
 
-fn default_true() -> bool { true }
+fn default_true() -> bool {
+    true
+}
 
 /// 供应商健康状态
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -81,11 +83,8 @@ impl ProviderConfig {
     /// 保存配置
     pub fn save(&self) -> Result<()> {
         let path = Self::config_path()?;
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
         let content = serde_json::to_string_pretty(self)?;
-        std::fs::write(&path, content)?;
+        kitup_core::atomic_write(&path, &content)?;
         Ok(())
     }
 
@@ -122,7 +121,9 @@ impl ProviderConfig {
         let mut providers: Vec<_> = self
             .providers
             .iter()
-            .filter(|p| p.enabled && (p.tools.is_empty() || p.tools.contains(&tool_name.to_string())))
+            .filter(|p| {
+                p.enabled && (p.tools.is_empty() || p.tools.contains(&tool_name.to_string()))
+            })
             .collect();
         providers.sort_by_key(|p| p.priority);
         providers

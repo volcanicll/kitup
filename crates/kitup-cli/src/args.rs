@@ -36,14 +36,9 @@ pub enum Commands {
         parallel: usize,
     },
     /// Pin a tool to a specific version
-    Pin {
-        tool: String,
-        version: String,
-    },
+    Pin { tool: String, version: String },
     /// Remove version pin for a tool
-    Unpin {
-        tool: String,
-    },
+    Unpin { tool: String },
     /// Show changelog for a tool
     Changelog {
         tool: Option<String>,
@@ -65,9 +60,7 @@ pub enum Commands {
     /// Show configuration
     Config,
     /// Generate shell completions
-    Completions {
-        shell: clap_complete::Shell,
-    },
+    Completions { shell: clap_complete::Shell },
     /// Update kitup itself
     #[command(name = "self-update")]
     SelfUpdate,
@@ -102,7 +95,5 @@ pub enum ProviderAction {
         priority: u32,
     },
     /// Remove a provider
-    Remove {
-        name: String,
-    },
+    Remove { name: String },
 }

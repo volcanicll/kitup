@@ -100,7 +100,13 @@ async fn run_async(
                         tool_name.bold(),
                         pinned_ver.dimmed()
                     ));
-                    return (tool_name, pinned_ver.clone(), pinned_ver, "pinned".to_string(), true);
+                    return (
+                        tool_name,
+                        pinned_ver.clone(),
+                        pinned_ver,
+                        "pinned".to_string(),
+                        true,
+                    );
                 }
             }
 
@@ -118,7 +124,13 @@ async fn run_async(
                                 output::symbols::CHECK.green(),
                                 tool_name.bold(),
                             ));
-                            return (tool_name, "-".into(), "installed".into(), "npm".into(), true);
+                            return (
+                                tool_name,
+                                "-".into(),
+                                "installed".into(),
+                                "npm".into(),
+                                true,
+                            );
                         }
                         Err(e) => {
                             pb.finish_with_message(format!(
@@ -136,7 +148,13 @@ async fn run_async(
                     output::symbols::PIN.dimmed(),
                     tool_name,
                 ));
-                return (tool_name, "-".into(), "not installed".into(), "-".into(), true);
+                return (
+                    tool_name,
+                    "-".into(),
+                    "not installed".into(),
+                    "-".into(),
+                    true,
+                );
             }
 
             let (method, adapter) = method_info.unwrap();

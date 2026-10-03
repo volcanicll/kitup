@@ -137,10 +137,9 @@ async fn run_async(json: bool) -> anyhow::Result<()> {
             );
         } else if installed_count > 0 {
             println!(
-                "  {} All {} tools are up to date {}",
+                "  {} All {} tools are up to date 🎉",
                 output::symbols::CHECK.green(),
-                installed_count,
-                "🎉"
+                installed_count
             );
         }
         println!();

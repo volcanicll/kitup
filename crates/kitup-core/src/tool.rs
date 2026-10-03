@@ -99,7 +99,9 @@ pub static TOOL_REGISTRY: &[Tool] = &[
         pipx_package: None,
         uv_package: None,
         github_repo: Some("QwenLM/qwen-code"),
-        install_url: Some("https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen.sh"),
+        install_url: Some(
+            "https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen.sh",
+        ),
     },
     Tool {
         name: "goose",
@@ -109,7 +111,9 @@ pub static TOOL_REGISTRY: &[Tool] = &[
         pipx_package: None,
         uv_package: None,
         github_repo: Some("block/goose"),
-        install_url: Some("https://github.com/block/goose/releases/download/stable/download_cli.sh"),
+        install_url: Some(
+            "https://github.com/block/goose/releases/download/stable/download_cli.sh",
+        ),
     },
     Tool {
         name: "aider",

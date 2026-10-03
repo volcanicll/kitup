@@ -162,7 +162,11 @@ impl App {
 
     pub fn apply_update_event(&mut self, event: UpdateEvent) {
         match event {
-            UpdateEvent::ToolDone { name, result, refreshed } => {
+            UpdateEvent::ToolDone {
+                name,
+                result,
+                refreshed,
+            } => {
                 // 刷新该工具的显示状态
                 self.apply_update(refreshed);
                 // 更新进度文字
@@ -183,17 +187,14 @@ impl App {
                 self.updating = false;
                 self.update_progress.clear();
                 if failed > 0 {
-                    self.status_message =
-                        format!("Done: {} updated, {} failed", updated, failed);
+                    self.status_message = format!("Done: {} updated, {} failed", updated, failed);
                 } else if updated > 0 {
                     self.status_message = format!("Done: {} tool(s) updated", updated);
                 } else {
                     self.status_message = "All tools are up to date".to_string();
                 }
                 // 清除选择状态
-                for s in &mut self.selected {
-                    *s = false;
-                }
+                self.selected.fill(false);
             }
         }
     }
@@ -282,7 +283,11 @@ impl App {
         self.tools
             .iter()
             .enumerate()
-            .filter(|(_, t)| t.name.to_lowercase().contains(&self.search_query.to_lowercase()))
+            .filter(|(_, t)| {
+                t.name
+                    .to_lowercase()
+                    .contains(&self.search_query.to_lowercase())
+            })
             .map(|(i, _)| i)
             .collect()
     }
@@ -298,6 +303,12 @@ impl App {
             .filter(|(i, t)| self.selected[*i] && t.installed)
             .count();
         (installed, updates, selected)
+    }
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

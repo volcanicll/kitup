@@ -25,8 +25,7 @@ async fn run_async(fix: bool, verbose: bool) -> anyhow::Result<()> {
                 println!(
                     "  {} Configuration OK ({})",
                     "✓".green(),
-                    kitup_core::config::Config::config_path()?
-                        .to_string_lossy()
+                    kitup_core::config::Config::config_path()?.to_string_lossy()
                 );
             }
             passed += 1;
@@ -37,7 +36,11 @@ async fn run_async(fix: bool, verbose: bool) -> anyhow::Result<()> {
             if fix {
                 match kitup_core::config::Config::init() {
                     Ok(path) => {
-                        println!("  {} Created default config: {}", "✓".green(), path.to_string_lossy());
+                        println!(
+                            "  {} Created default config: {}",
+                            "✓".green(),
+                            path.to_string_lossy()
+                        );
                         fixable += 1;
                     }
                     Err(e2) => println!("  {} Failed to create config: {}", "✗".red(), e2),
@@ -68,7 +71,11 @@ async fn run_async(fix: bool, verbose: bool) -> anyhow::Result<()> {
                         "⚡".yellow(),
                         tool.name.bold(),
                         all_methods.len().to_string().yellow(),
-                        all_methods.iter().map(|m| m.to_string()).collect::<Vec<_>>().join(", ")
+                        all_methods
+                            .iter()
+                            .map(|m| m.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
                     );
                     issues += 1;
                     println!("     └─ 建议: 清理旧安装，保留一个即可");
@@ -83,7 +90,12 @@ async fn run_async(fix: bool, verbose: bool) -> anyhow::Result<()> {
     }
 
     // 3. 包管理器
-    for (cmd, name) in [("npm", "npm"), ("brew", "Homebrew"), ("pipx", "pipx"), ("uv", "uv")] {
+    for (cmd, name) in [
+        ("npm", "npm"),
+        ("brew", "Homebrew"),
+        ("pipx", "pipx"),
+        ("uv", "uv"),
+    ] {
         if which::which(cmd).is_ok() {
             if verbose {
                 println!("  {} {} available", "✓".green(), name);
@@ -105,11 +117,21 @@ async fn run_async(fix: bool, verbose: bool) -> anyhow::Result<()> {
     ] {
         match client.get(url).header("User-Agent", "kitup").send().await {
             Ok(resp) => {
-                println!("  {} {} reachable ({})", "✓".green(), name, resp.status().as_u16());
+                println!(
+                    "  {} {} reachable ({})",
+                    "✓".green(),
+                    name,
+                    resp.status().as_u16()
+                );
                 passed += 1;
             }
             Err(e) => {
-                println!("  {} {} unreachable: {}", "✗".red(), name, e.to_string().red());
+                println!(
+                    "  {} {} unreachable: {}",
+                    "✗".red(),
+                    name,
+                    e.to_string().red()
+                );
                 issues += 1;
             }
         }
@@ -122,7 +144,11 @@ async fn run_async(fix: bool, verbose: bool) -> anyhow::Result<()> {
     } else {
         println!(
             "  {} {} issue{} found, {} can be auto-fixed{}",
-            if fixable > 0 { "⚡".to_string() } else { "✗".to_string() },
+            if fixable > 0 {
+                "⚡".to_string()
+            } else {
+                "✗".to_string()
+            },
             issues.to_string().yellow(),
             if issues > 1 { "s" } else { "" },
             fixable.to_string().green(),

@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en" id="html-root">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>kitup — one command for all your AI tools</title>
+    <meta
+      name="description"
+      content="kitup keeps 12 AI coding assistants current across npm, Homebrew, pipx, uv, and standalone installs. PATH-aware, cross-platform, zero dependencies."
+    />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,560;9..144,640&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="noise" aria-hidden="true"></div>
+
+    <header class="nav">
+      <a class="nav-brand" href="#top">
+        <span class="brand-word">kitup</span>
+        <span class="brand-tag">v0.2.0</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#tools">Tools</a>
+        <a href="https://github.com/volcanicll/kitup" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <!-- ============ HERO ============ -->
+      <section class="hero">
+        <p class="kicker">one command · twelve AI tools · zero dependencies</p>
+        <h1>
+          <span class="hero-line">Update all your</span>
+          <span class="hero-line hero-line-accent">AI tools tonight<span class="cursor">_</span></span>
+        </h1>
+        <p class="hero-sub">
+          kitup keeps 12 AI coding assistants current across npm, Homebrew,
+          pipx, uv, and standalone installs. It updates the binary on your
+          <em>PATH</em> — not some duplicate lurking elsewhere.
+        </p>
+
+        <div class="install-card" id="install-card">
+          <div class="install-bar">
+            <span class="install-platform" id="install-platform">macOS / Linux</span>
+            <button class="copy-btn" id="copy-btn" data-command="" type="button">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span id="copy-label">copy</span>
+            </button>
+          </div>
+          <code class="install-command" id="install-command"></code>
+        </div>
+        <button class="install-switch" id="install-switch" type="button"></button>
+
+        <dl class="hero-stats">
+          <div><dt>tools</dt><dd>12</dd></div>
+          <div><dt>package managers</dt><dd>5</dd></div>
+          <div><dt>binary size</dt><dd>~9MB</dd></div>
+          <div><dt>runtime deps</dt><dd>0</dd></div>
+        </dl>
+      </section>
+
+      <!-- ============ TUI SHOWCASE ============ -->
+      <section class="tui-section">
+        <header class="section-head">
+          <p class="section-eyebrow">$ kitup</p>
+          <h2>See everything at a glance.</h2>
+          <p class="section-sub">
+            A multi-panel TUI with keyboard navigation, real-time version
+            detection, and parallel updates. No arguments required.
+          </p>
+        </header>
+
+        <div class="terminal" role="img" aria-label="kitup TUI dashboard mockup">
+          <div class="term-bar">
+            <span class="term-dot term-dot-r"></span>
+            <span class="term-dot term-dot-y"></span>
+            <span class="term-dot term-dot-g"></span>
+            <span class="term-title">kitup</span>
+          </div>
+          <div class="term-tabs">
+            <span class="term-tab term-tab-active">1:Tools</span>
+            <span class="term-tab">2:Providers</span>
+            <span class="term-tab">3:Health</span>
+            <span class="term-hint">[q]uit [?]help</span>
+          </div>
+          <div class="term-body">
+            <div class="term-thead">
+              <span class="c-sel"></span><span class="c-name">NAME</span><span class="c-ver">VERSION</span><span class="c-method">METHOD</span><span class="c-status">STATUS</span>
+            </div>
+            <div class="term-row"><span class="c-sel">○</span><span class="c-name">claude</span><span class="c-ver">2.1.74</span><span class="c-method">npm</span><span class="c-status ok">up to date</span></div>
+            <div class="term-row term-row-active"><span class="c-sel">◉</span><span class="c-name">codex</span><span class="c-ver">0.114.0 <b class="up">→ 0.116.2</b></span><span class="c-method">brew</span><span class="c-status warn">update available</span></div>
+            <div class="term-row"><span class="c-sel">◉</span><span class="c-name">gemini</span><span class="c-ver">0.33.0</span><span class="c-method">npm</span><span class="c-status ok">up to date</span></div>
+            <div class="term-row"><span class="c-sel">○</span><span class="c-name">aider</span><span class="c-ver">0.82.3</span><span class="c-method">pipx</span><span class="c-status ok">up to date</span></div>
+            <div class="term-row"><span class="c-sel">○</span><span class="c-name">qwen</span><span class="c-ver">0.1.4 <b class="up">→ 0.1.8</b></span><span class="c-method">npm</span><span class="c-status warn">update available</span></div>
+          </div>
+          <div class="term-actions"><span class="key-hl">[u]pdate</span> [a]ll [Space]select [Enter]detail</div>
+          <div class="term-status"><span class="ok">● 5 installed</span><span class="warn">↑ 2 updates</span><span>◉ 2 selected</span></div>
+        </div>
+      </section>
+
+      <!-- ============ MARQUEE ============ -->
+      <div class="marquee" aria-hidden="true">
+        <div class="marquee-track" id="marquee-track"></div>
+      </div>
+
+      <!-- ============ FEATURES ============ -->
+      <section class="features" id="features">
+        <header class="section-head">
+          <p class="section-eyebrow">02 — features</p>
+          <h2>Built for real environments.</h2>
+          <p class="section-sub">
+            Mixed installs happen. PATH drift happens. kitup updates the tool
+            you are actually invoking.
+          </p>
+        </header>
+
+        <div class="feature-grid">
+          <article class="feature feature-wide">
+            <span class="feature-num">01</span>
+            <h3>PATH-aware</h3>
+            <p>Updates the binary on your PATH, not a random duplicate. Multi-install detection comes standard — when a tool exists twice, kitup tells you which one wins and why.</p>
+          </article>
+          <article class="feature">
+            <span class="feature-num">02</span>
+            <h3>One command</h3>
+            <p><code>kitup update --all</code>, or pick tools individually. Dry-run previews every change before anything is touched.</p>
+          </article>
+          <article class="feature">
+            <span class="feature-num">03</span>
+            <h3>Cross-platform</h3>
+            <p>macOS (Apple Silicon + Intel), Linux, Windows. A single ~9MB binary with zero runtime dependencies.</p>
+          </article>
+          <article class="feature">
+            <span class="feature-num">04</span>
+            <h3>Interactive TUI</h3>
+            <p>A lazygit-style dashboard: select tools, preview versions, update in parallel — all without leaving the keyboard.</p>
+          </article>
+          <a class="feature feature-more" href="https://github.com/volcanicll/kitup/releases" target="_blank" rel="noopener noreferrer">
+            <span class="feature-num">✳</span>
+            <h3>More with every release</h3>
+            <p>kitup is under active development — new tools and adapters land regularly.</p>
+          </a>
+          <article class="feature feature-wide">
+            <span class="feature-num">05</span>
+            <h3>Provider management</h3>
+            <p>Switch API providers for Claude, Codex, and Gemini with circuit-breaker failover. Configs are backed up on every switch, and the change is persisted where each tool actually reads it.</p>
+          </article>
+          <article class="feature">
+            <span class="feature-num">06</span>
+            <h3>Health diagnostics</h3>
+            <p><code>kitup doctor</code> checks network connectivity, flags multi-installs, and can auto-fix configuration issues.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============ TOOLS ============ -->
+      <section class="tools" id="tools">
+        <header class="section-head">
+          <p class="section-eyebrow">03 — supported tools</p>
+          <h2>Twelve assistants, one updater.</h2>
+          <p class="section-sub">
+            Every tool kitup can detect, version-check, and update — with the
+            package managers it understands.
+          </p>
+        </header>
+        <div class="tools-grid" id="tools-grid"></div>
+      </section>
+
+      <!-- ============ CTA ============ -->
+      <section class="cta">
+        <h2>Bring your tools up to date.</h2>
+        <div class="cta-actions">
+          <a class="cta-btn" href="https://github.com/volcanicll/kitup" target="_blank" rel="noopener noreferrer">Star on GitHub</a>
+          <a class="cta-btn cta-btn-ghost" href="https://github.com/volcanicll/kitup/releases" target="_blank" rel="noopener noreferrer">Download release</a>
+        </div>
+        <p class="cta-note">MIT licensed · runs on macOS, Linux, Windows</p>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span class="footer-brand">kitup</span>
+      <span class="footer-meta">MIT License · v0.2.0</span>
+      <nav class="footer-links">
+        <a href="https://github.com/volcanicll/kitup" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="https://github.com/volcanicll/kitup/releases" target="_blank" rel="noopener noreferrer">Releases</a>
+        <a href="https://github.com/volcanicll/kitup/issues" target="_blank" rel="noopener noreferrer">Issues</a>
+      </nav>
+      <span class="footer-copy">© 2026 <a href="https://github.com/volcanicll" target="_blank" rel="noopener noreferrer">volcanicll</a></span>
+    </footer>
+
+    <script src="main.js"></script>
+  </body>
+</html>

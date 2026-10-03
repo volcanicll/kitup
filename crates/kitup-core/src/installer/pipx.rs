@@ -12,14 +12,13 @@ pub struct PipxAdapter;
 
 #[async_trait]
 impl PackageManager for PipxAdapter {
-    fn name(&self) -> &str { "pipx" }
+    fn name(&self) -> &str {
+        "pipx"
+    }
 
     async fn is_installed(&self, tool: &Tool) -> bool {
         if let Some(ref pkg) = tool.pipx_package {
-            let output = Command::new("pipx")
-                .args(["list"])
-                .output()
-                .await;
+            let output = Command::new("pipx").args(["list"]).output().await;
             match output {
                 Ok(output) if output.status.success() => {
                     String::from_utf8_lossy(&output.stdout).contains(pkg)
@@ -48,10 +47,7 @@ impl PackageManager for PipxAdapter {
 
     async fn update(&self, tool: &Tool) -> Result<()> {
         if let Some(ref pkg) = tool.pipx_package {
-            let status = Command::new("pipx")
-                .args(["upgrade", pkg])
-                .status()
-                .await?;
+            let status = Command::new("pipx").args(["upgrade", pkg]).status().await?;
             if !status.success() {
                 anyhow::bail!("pipx upgrade failed for {}", pkg);
             }
@@ -61,10 +57,7 @@ impl PackageManager for PipxAdapter {
 
     async fn install(&self, tool: &Tool) -> Result<()> {
         if let Some(ref pkg) = tool.pipx_package {
-            let status = Command::new("pipx")
-                .args(["install", pkg])
-                .status()
-                .await?;
+            let status = Command::new("pipx").args(["install", pkg]).status().await?;
             if !status.success() {
                 anyhow::bail!("pipx install failed for {}", pkg);
             }

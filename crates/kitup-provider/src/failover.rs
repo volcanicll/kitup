@@ -17,9 +17,15 @@ pub struct FailoverConfig {
     pub reset_timeout_secs: u64,
 }
 
-fn default_retry_delay() -> u64 { 5 }
-fn default_failure_threshold() -> u32 { 3 }
-fn default_reset_timeout() -> u64 { 300 }
+fn default_retry_delay() -> u64 {
+    5
+}
+fn default_failure_threshold() -> u32 {
+    3
+}
+fn default_reset_timeout() -> u64 {
+    300
+}
 
 impl Default for FailoverConfig {
     fn default() -> Self {
