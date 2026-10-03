@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.2.1 - 2026-10-03
+
+### Fixed
+- **self-update**: release archives are now extracted before replacing the binary; the new binary is verified with `--version` and the old one kept as backup until the swap succeeds
+- **npm updates**: use `npm install -g <pkg>@latest` instead of `npm update -g`, which could silently keep tools on old versions
+- **prerelease versions**: `1.2.3-beta.1` style versions now parse and compare correctly
+- **provider switch**: API base changes now persist to Claude `settings.json` (`env` map) and Codex/Gemini `.env` files, surviving restarts; no longer relies on process-local environment variables
+- **config writes**: all kitup config/state files are written atomically (no truncated JSON on crash)
+
+### Added
+- Rust CI: fmt + clippy (`-D warnings`) + tests on macOS/Linux/Windows
+- Release pipeline now publishes native binaries for 5 targets (macOS arm64/x64, Linux x64/arm64, Windows x64) with checksums — `kitup self-update` and the install scripts can finally serve them
+- config file format unchanged and fully backward compatible
+
+### Changed
+- Website rebuilt as dependency-free static HTML/CSS/JS (no Node build), same deploy target
+- Repository: removed turbo/pnpm workspace scaffolding; Node packages remain for install scripts only
+- clippy clean at `-D warnings`; formatting normalized
+
 ## 0.2.0 - 2026-06-09
 
 ### Breaking Changes
